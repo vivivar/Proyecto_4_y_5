@@ -83,7 +83,7 @@ void on_exitButton_clicked (GtkButton *exitButton, gpointer data){
 int main (int argc, char *argv[]){
 	gtk_init(&argc, &argv);
 	
-	builder =  gtk_builder_new_from_file ("MiniProyecto.glade");
+	builder =  gtk_builder_new_from_file ("Simplex.glade");
 	
 	window = GTK_WIDGET(gtk_builder_get_object(builder, "window"));
 	
