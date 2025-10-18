@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.40.0 -->
+<interface>
+  <requires lib="gtk+" version="3.24"/>
+  <object class="GtkWindow" id="window">
+    <property name="can-focus">False</property>
+    <child>
+      <object class="GtkFixed" id="fixed">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <child>
+          <object class="GtkLabel" id="titleSimplex">
+            <property name="width-request">451</property>
+            <property name="height-request">80</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">The SIMPLEX Solver</property>
+            <attributes>
+              <attribute name="font-desc" value="Nimbus Roman, Bold 10"/>
+              <attribute name="weight" value="heavy"/>
+              <attribute name="variant" value="normal"/>
+              <attribute name="scale" value="4"/>
+              <attribute name="size" value="8192"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">5</property>
+            <property name="y">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="instructions">
+            <property name="width-request">547</property>
+            <property name="height-request">90</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Bienvenido al SIMPLEX Solver! Siga las siguientes instrucciones para utilizarlo:
+1. Ingrese el nombre del problema a resolver.
+2. Seleccione si desea Maximizar o Minimizar.
+3. Indique la cantidad de variables del problema. Puede nombrarlas a su gusto.
+4. Indique la cantidad de restricciones
+5. Haga click en el botón de 'Continuar' e indique la función objetivo y las 
+restricciones en los espacios a mano derecha. 
+6. Cuando esté listo, haga click en 'Resolver'.</property>
+            <property name="wrap">True</property>
+          </object>
+          <packing>
+            <property name="x">17</property>
+            <property name="y">69</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="nameLabel">
+            <property name="width-request">178</property>
+            <property name="height-request">27</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Nombre del Problema:</property>
+            <property name="wrap">True</property>
+          </object>
+          <packing>
+            <property name="x">17</property>
+            <property name="y">234</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="nameEntry">
+            <property name="width-request">336</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+          </object>
+          <packing>
+            <property name="x">200</property>
+            <property name="y">231</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkRadioButton" id="rbMaximizar">
+            <property name="label" translatable="yes">Maximizar</property>
+            <property name="width-request">100</property>
+            <property name="height-request">22</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">False</property>
+            <property name="active">True</property>
+            <property name="draw-indicator">True</property>
+            <property name="group">rbMinimizar</property>
+          </object>
+          <packing>
+            <property name="x">28</property>
+            <property name="y">284</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkRadioButton" id="rbMinimizar">
+            <property name="label" translatable="yes">Minimizar</property>
+            <property name="width-request">100</property>
+            <property name="height-request">22</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">False</property>
+            <property name="active">True</property>
+            <property name="draw-indicator">True</property>
+            <property name="group">rbMaximizar</property>
+          </object>
+          <packing>
+            <property name="x">138</property>
+            <property name="y">284</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="varQtyLabel">
+            <property name="width-request">153</property>
+            <property name="height-request">20</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Cantidad de Variables:</property>
+            <property name="wrap">True</property>
+          </object>
+          <packing>
+            <property name="x">30</property>
+            <property name="y">334</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinButton" id="spinVariables">
+            <property name="width-request">118</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+          </object>
+          <packing>
+            <property name="x">191</property>
+            <property name="y">327</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="variablesScroll">
+            <property name="width-request">206</property>
+            <property name="height-request">142</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="shadow-type">in</property>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="x">75</property>
+            <property name="y">390</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="varnameLabel">
+            <property name="width-request">229</property>
+            <property name="height-request">20</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Nombres de variables:</property>
+            <property name="justify">center</property>
+            <property name="wrap">True</property>
+          </object>
+          <packing>
+            <property name="x">60</property>
+            <property name="y">367</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="funcionLabel">
+            <property name="width-request">79</property>
+            <property name="height-request">36</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Modelo:</property>
+            <property name="justify">center</property>
+            <property name="wrap">True</property>
+            <attributes>
+              <attribute name="font-desc" value="Nimbus Roman, 10"/>
+              <attribute name="style" value="normal"/>
+              <attribute name="weight" value="bold"/>
+              <attribute name="scale" value="1.3"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">613</property>
+            <property name="y">154</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="ZLabel">
+            <property name="width-request">64</property>
+            <property name="height-request">36</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Z =</property>
+            <property name="justify">center</property>
+            <property name="wrap">True</property>
+            <attributes>
+              <attribute name="scale" value="2"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">651</property>
+            <property name="y">234</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="variablesScroll1">
+            <property name="width-request">383</property>
+            <property name="height-request">48</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="shadow-type">in</property>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="x">715</property>
+            <property name="y">228</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="restQtyLabel">
+            <property name="width-request">179</property>
+            <property name="height-request">36</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Cantidad de Restricciones:</property>
+            <property name="justify">center</property>
+            <property name="wrap">True</property>
+          </object>
+          <packing>
+            <property name="x">30</property>
+            <property name="y">560</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="maxminSelectionLabel">
+            <property name="width-request">92</property>
+            <property name="height-request">27</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Max/Min</property>
+            <property name="wrap">True</property>
+            <attributes>
+              <attribute name="scale" value="1.5"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">645</property>
+            <property name="y">188</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="sujetoLabel">
+            <property name="width-request">92</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Sujeto a:</property>
+            <property name="wrap">True</property>
+            <attributes>
+              <attribute name="scale" value="1.5"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">645</property>
+            <property name="y">301</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinButton" id="spinRestrictions">
+            <property name="width-request">118</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+          </object>
+          <packing>
+            <property name="x">219</property>
+            <property name="y">562</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="restrictionsScroll">
+            <property name="width-request">482</property>
+            <property name="height-request">212</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="shadow-type">in</property>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="x">649</property>
+            <property name="y">337</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="restQtyLabel1">
+            <property name="width-request">100</property>
+            <property name="height-request">30</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">X_i ≥ 0</property>
+            <property name="justify">center</property>
+            <property name="wrap">True</property>
+          </object>
+          <packing>
+            <property name="x">845</property>
+            <property name="y">549</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="continueButton">
+            <property name="label" translatable="yes">Continuar</property>
+            <property name="width-request">100</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">435</property>
+            <property name="y">624</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkFileChooserButton" id="loadFileButton">
+            <property name="width-request">139</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="title" translatable="yes"/>
+          </object>
+          <packing>
+            <property name="x">152</property>
+            <property name="y">624</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="cargarLabel">
+            <property name="width-request">163</property>
+            <property name="height-request">36</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Cargar problema existente:</property>
+            <property name="justify">right</property>
+            <property name="wrap">True</property>
+          </object>
+          <packing>
+            <property name="x">5</property>
+            <property name="y">622</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkCheckButton" id="showTablesCheck">
+            <property name="label" translatable="yes">Mostrar tablas intermedias</property>
+            <property name="width-request">209</property>
+            <property name="height-request">22</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">False</property>
+            <property name="draw-indicator">True</property>
+          </object>
+          <packing>
+            <property name="x">650</property>
+            <property name="y">585</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="solveButton">
+            <property name="label" translatable="yes">Resolver</property>
+            <property name="width-request">100</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">845</property>
+            <property name="y">624</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="exitButton">
+            <property name="label" translatable="yes">Salir</property>
+            <property name="width-request">100</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">1058</property>
+            <property name="y">644</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkImage" id="dantzigImage">
+            <property name="width-request">370</property>
+            <property name="height-request">135</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="pixbuf">Imagenes/dantzig_banner.png</property>
+          </object>
+          <packing>
+            <property name="x">614</property>
+            <property name="y">11</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
