@@ -8,8 +8,20 @@
     <property name="step-increment">1</property>
     <property name="page-increment">10</property>
   </object>
+  <object class="GtkAdjustment" id="adjustment2">
+    <property name="lower">2</property>
+    <property name="upper">15</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkFileFilter" id="filefilter1">
+    <patterns>
+      <pattern>*.csv</pattern>
+    </patterns>
+  </object>
   <object class="GtkWindow" id="window">
     <property name="can-focus">False</property>
+    <property name="resizable">False</property>
     <child>
       <object class="GtkFixed" id="fixed">
         <property name="visible">True</property>
@@ -213,7 +225,7 @@ restricciones en los espacios a mano derecha.
           </packing>
         </child>
         <child>
-          <object class="GtkScrolledWindow" id="variablesScroll1">
+          <object class="GtkScrolledWindow" id="ZScroll">
             <property name="width-request">383</property>
             <property name="height-request">48</property>
             <property name="visible">True</property>
@@ -282,7 +294,7 @@ restricciones en los espacios a mano derecha.
             <property name="height-request">34</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
-            <property name="adjustment">adjustment1</property>
+            <property name="adjustment">adjustment2</property>
           </object>
           <packing>
             <property name="x">219</property>
@@ -330,15 +342,17 @@ restricciones en los espacios a mano derecha.
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="x">435</property>
+            <property name="x">432</property>
             <property name="y">624</property>
           </packing>
         </child>
         <child>
           <object class="GtkFileChooserButton" id="loadFileButton">
-            <property name="width-request">139</property>
+            <property name="width-request">199</property>
+            <property name="height-request">34</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="filter">filefilter1</property>
             <property name="title" translatable="yes"/>
           </object>
           <packing>
@@ -400,7 +414,7 @@ restricciones en los espacios a mano derecha.
           </object>
           <packing>
             <property name="x">1058</property>
-            <property name="y">644</property>
+            <property name="y">690</property>
           </packing>
         </child>
         <child>
@@ -414,6 +428,34 @@ restricciones en los espacios a mano derecha.
           <packing>
             <property name="x">614</property>
             <property name="y">11</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="saveButton">
+            <property name="label" translatable="yes">Guardar</property>
+            <property name="width-request">89</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">262</property>
+            <property name="y">665</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="loadButton">
+            <property name="label" translatable="yes">Cargar</property>
+            <property name="width-request">100</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">152</property>
+            <property name="y">665</property>
           </packing>
         </child>
       </object>
