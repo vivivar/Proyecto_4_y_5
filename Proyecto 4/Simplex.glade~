@@ -318,14 +318,17 @@ restricciones en los espacios a mano derecha.
           </packing>
         </child>
         <child>
-          <object class="GtkLabel" id="restQtyLabel1">
+          <object class="GtkLabel" id="xiLabel">
             <property name="width-request">100</property>
             <property name="height-request">30</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="label" translatable="yes">X_i ≥ 0</property>
+            <property name="label" translatable="yes">Xᵢ ≥ 0</property>
             <property name="justify">center</property>
             <property name="wrap">True</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
           </object>
           <packing>
             <property name="x">845</property>

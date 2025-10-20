@@ -63,6 +63,17 @@ GtkCssProvider *cssProvider;
 // ---- Variables Globales ----
 
 const char *type = "MAX";
+gboolean showTables = FALSE;
+
+typedef struct {
+    double **A;
+    int rows;
+    int cols;
+    int n_vars;
+    int n_slack;
+    int n_exceso;
+    int n_artificial;
+} Tabla;
 
 
 /* 
@@ -145,9 +156,54 @@ static gboolean normalizeValue(GtkWidget *entry, GdkEvent *event, gpointer user_
     if (t == NULL || *t == '\0' || (strcmp(t, "-") == 0) || (strcmp(t, ".") == 0) || (strcmp(t, "-.") == 0)) {
         gtk_entry_set_text(GTK_ENTRY(entry), "0");
     }
-    return FALSE; // seguir con el manejo normal del foco
+    return FALSE; 
 }
 
+static GtkWidget* grid_at(GtkWidget *grid, int col, int row) {
+    return gtk_grid_get_child_at(GTK_GRID(grid), col, row);
+}
+
+static double entry_to_double(GtkWidget *w) {
+    if (!w) return 0.0;
+
+    if (GTK_IS_ENTRY(w)) {
+        const char *t = gtk_entry_get_text(GTK_ENTRY(w));
+        if (!t) return 0.0;
+        char *endptr = NULL;
+        return g_strtod(t, &endptr);
+    }
+
+    // Si por accidente nos pasan un SpinButton
+    if (GTK_IS_SPIN_BUTTON(w)) {
+        return gtk_spin_button_get_value(GTK_SPIN_BUTTON(w));
+    }
+
+    // Si es otra cosa (p. ej., GtkLabel "Z ="), avisamos y devolvemos 0
+    g_warning("Se esperaba GtkEntry/GtkSpinButton pero se encontró otro widget.");
+    return 0.0;
+}
+
+static int combo_active_index(GtkWidget *maybe_combo) {
+    if (!maybe_combo) return 0; // por defecto ≤
+    return gtk_combo_box_get_active(GTK_COMBO_BOX(maybe_combo));
+}
+
+static double **alloc_matrix(int rows, int cols) {
+    double **M = g_new0(double*, rows);
+    for (int i = 0; i < rows; ++i) {
+        M[i] = g_new0(double, cols);
+    }
+    return M;
+}
+
+static void free_tabla(Tabla *tab) {
+    if (!tab) return;
+    if (tab->A) {
+        for (int i = 0; i < tab->rows; ++i) g_free(tab->A[i]);
+        g_free(tab->A);
+    }
+    g_free(tab);
+}
 
 // -------------------------------------------
 // ---------------- Funciones ----------------
@@ -258,10 +314,10 @@ static void createRestrictions (void) {
 
 
         GtkWidget *rel = gtk_combo_box_text_new();
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(rel), "≥");
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(rel), "≤");
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(rel), "≥");
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(rel), "=");
-        gtk_combo_box_set_active(GTK_COMBO_BOX(rel), 0); 
+        gtk_combo_box_set_active(GTK_COMBO_BOX(rel), 0); // Dejar seleccionado por default el menor o igual
         gtk_grid_attach(GTK_GRID(gridRestrictions), rel, col++, r, 1, 1);
 
         GtkWidget *rhs = gtk_entry_new();
@@ -274,6 +330,117 @@ static void createRestrictions (void) {
     }
 
     gtk_widget_show_all(gridRestrictions);
+}
+
+Tabla* buildTable(void) {
+    int n = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinVariables));
+    int m = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinRestrictions));
+    if (n <= 0 || m < 0) {
+        return NULL;
+    }
+    int s_total = 0, e_total = 0, a_total = 0;
+    for (int r = 0; r < m; ++r) {
+        int combo_col = 3*n - 1;
+        GtkWidget *rel = grid_at(gridRestrictions, combo_col, r);
+        int idx = combo_active_index(rel); // 0: ≤, 1: ≥, 2: =
+        // sumar col s
+        if (idx == 0){
+            s_total += 1;  
+        }
+        // sumar cols de e + a
+        else if (idx == 1) { 
+            e_total += 1; a_total += 1; 
+        } 
+        // sumar col artificial
+        else {
+            a_total += 1;
+        }
+    }
+
+    int cols = n + s_total + e_total + a_total + 1;
+    int rows = m + 1;
+
+    Tabla *tab = g_new0(Tabla, 1);
+    tab->A = alloc_matrix(rows, cols);
+    tab->rows = rows;
+    tab->cols = cols;
+    tab->n_vars = n;
+    tab->n_slack = s_total;
+    tab->n_exceso = e_total;
+    tab->n_artificial = a_total;
+
+    int slack_start      = n;
+    int exceso_start    = n + s_total;
+    int artificial_start = n + s_total + e_total;
+    int rhs_col          = cols - 1;
+
+    // Fila 0 (Z)
+    int z_base = 0; 
+    {
+        GtkWidget *c00 = grid_at(ZGrid, 0, 0);
+        if (c00 && GTK_IS_LABEL(c00)) {
+            z_base = 1;
+        }
+    }
+
+    for (int i = 0; i < n; ++i) {
+        GtkWidget *coef_entry = grid_at(ZGrid, z_base + 3*i, 0);
+        double c = entry_to_double(coef_entry);  
+        if (type && g_strcmp0(type, "MIN") == 0) {
+            c = -c;
+        } 
+        tab->A[0][i] = c;
+    }
+
+    //Filas de restricciones
+    int slack_idx = 0, exceso_idx = 0, artificial_idx = 0;
+
+    for (int r = 0; r < m; ++r) {
+        int row = r + 1;
+
+        for (int i = 0; i < n; ++i) {
+            GtkWidget *coef_entry = grid_at(gridRestrictions, 0 + 3*i, r);
+            tab->A[row][i] = entry_to_double(coef_entry);
+        }
+
+        int combo_col = 3*n - 1;
+        GtkWidget *rel = grid_at(gridRestrictions, combo_col, r);
+        int idx = combo_active_index(rel); // 0 -> ≤, 1 -> ≥, 2 -> =
+        // Si ≤ -> + holgura
+        if (idx == 0) { 
+            tab->A[row][slack_start + slack_idx] = 1.0;
+            slack_idx++;
+        } 
+        // Si ≥ -> - exceso y + artificial
+        else if (idx == 1) { 
+            tab->A[row][exceso_start + exceso_idx] = -1.0;
+            tab->A[row][artificial_start + artificial_idx] = 1.0;
+            exceso_idx++;
+            artificial_idx++;
+        } 
+        // si = ->  + artificial
+        else { 
+            tab->A[row][artificial_start + artificial_idx] = 1.0;
+            artificial_idx++;
+        }
+
+        GtkWidget *rhs_entry = grid_at(gridRestrictions, 3*n, r);
+        tab->A[row][rhs_col] = entry_to_double(rhs_entry);
+    }
+
+    return tab;
+}
+
+static void print_tabla(const Tabla *tab) {
+    if (!tab) { g_print("Tabla NULL\n"); return; }
+    g_print("Tabla: rows=%d cols=%d | n=%d s=%d e=%d a=%d | rhs_col=%d\n",
+            tab->rows, tab->cols, tab->n_vars, tab->n_slack, tab->n_exceso, tab->n_artificial, tab->cols-1);
+    for (int i = 0; i < tab->rows; ++i) {
+        for (int j = 0; j < tab->cols; ++j) {
+            g_print("%8.3f ", tab->A[i][j]);
+        }
+        g_print("\n");
+    }
 }
 
 
@@ -296,7 +463,24 @@ void on_rbMinimizar_toggled(GtkRadioButton *rbMinimizar, gpointer user_data) {
 void on_continueButton_clicked(GtkWidget *widget, gpointer data) {
     createZ();
     createRestrictions();
+
+    if (type == "MAX"){
+        gtk_label_set_text(GTK_LABEL(maxminSelectionLabel), "Maximizar");
+    }
+
+    if (type == "MIN"){
+        gtk_label_set_text(GTK_LABEL(maxminSelectionLabel), "Minimizar");
+    }
+
     gtk_widget_set_sensitive(solveButton, TRUE);
+}
+
+static void on_showTablesCheck_button_toggled(GtkToggleButton *button, gpointer user_data) {
+    if (gtk_toggle_button_get_active(button)) {
+        showTables = TRUE;
+    } else {
+        showTables = FALSE;
+    }
 }
 
 void on_loadFileButton_clicked(GtkWidget *widget, gpointer data) {
@@ -304,11 +488,20 @@ void on_loadFileButton_clicked(GtkWidget *widget, gpointer data) {
 }
 
 void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
-    g_print("Resolver presionado\n");
+    Tabla *tab = buildTable();
+    if (!tab) {
+        g_printerr("No se pudo construir la tabla.\n");
+        return;
+    }
+    print_tabla(tab);
+
+    // ... aquí vendría tu implementación de Fase I / Fase II del símplex ...
+
+    free_tabla(tab);
 }
 
 void on_saveButton_clicked(GtkWidget *widget, gpointer data) {
-    g_print("Guardar presionado\n");
+    
 }
 
 void on_loadButton_clicked(GtkWidget *widget, gpointer data) {
@@ -387,6 +580,8 @@ int main (int argc, char *argv[]){
     g_signal_connect(saveButton, "clicked", G_CALLBACK(on_saveButton_clicked), NULL);
     g_signal_connect(loadButton, "clicked", G_CALLBACK(on_loadButton_clicked), NULL);
 
+    
+
     gridVariables = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(gridVariables), 6);
     gtk_grid_set_column_spacing(GTK_GRID(gridVariables), 6);
@@ -407,6 +602,7 @@ int main (int argc, char *argv[]){
     
     g_signal_connect(rbMaximizar, "toggled", G_CALLBACK(on_rbMaximizar_toggled), NULL);
     g_signal_connect(rbMinimizar, "toggled", G_CALLBACK(on_rbMinimizar_toggled), NULL);
+    g_signal_connect(showTablesCheck, "toggled", G_CALLBACK(on_showTablesCheck_button_toggled), NULL);
 
 	gtk_widget_show(window);
 	
