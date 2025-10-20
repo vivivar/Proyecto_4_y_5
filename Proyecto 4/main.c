@@ -375,21 +375,16 @@ Tabla* buildTable(void) {
     int rhs_col          = cols - 1;
 
     // Fila 0 (Z)
-    int z_base = 0; 
+    int z_base = 0;
     {
         GtkWidget *c00 = grid_at(ZGrid, 0, 0);
-        if (c00 && GTK_IS_LABEL(c00)) {
-            z_base = 1;
-        }
+        if (c00 && GTK_IS_LABEL(c00)) z_base = 1; // corre si existe el label "Z ="
     }
 
     for (int i = 0; i < n; ++i) {
         GtkWidget *coef_entry = grid_at(ZGrid, z_base + 3*i, 0);
-        double c = entry_to_double(coef_entry);  
-        if (type && g_strcmp0(type, "MIN") == 0) {
-            c = -c;
-        } 
-        tab->A[0][i] = c;
+        double c = entry_to_double(coef_entry);
+        tab->A[0][i] = -c;
     }
 
     //Filas de restricciones
