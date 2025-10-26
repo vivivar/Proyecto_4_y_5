@@ -5,6 +5,7 @@ Emily Sánchez
 Viviana Vargas
 */
 
+#include "simplex.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -438,6 +439,170 @@ static void print_tabla(const Tabla *tab) {
     }
 }
 
+// Función para mostrar resultados en una nueva ventana
+void mostrar_resultados(ResultadoSimplex *resultado, int num_vars, const char **nombres_vars) {
+    GtkWidget *dialog;
+    GtkWidget *content_area;
+    GtkWidget *scroll;
+    GtkWidget *label;
+    GString *texto = g_string_new("");
+    
+    // Crear diálogo
+    dialog = gtk_dialog_new_with_buttons("Resultados del Simplex",
+                                        GTK_WINDOW(window),
+                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        "Cerrar",
+                                        GTK_RESPONSE_CLOSE,
+                                        "Guardar PDF",
+                                        GTK_RESPONSE_YES,
+                                        NULL);
+    
+    content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+                                  GTK_POLICY_AUTOMATIC,
+                                  GTK_POLICY_AUTOMATIC);
+    
+    label = gtk_label_new("");
+    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_container_add(GTK_CONTAINER(scroll), label);
+    gtk_container_add(GTK_CONTAINER(content_area), scroll);
+    
+    // Construir texto de resultados
+    g_string_append_printf(texto, "=== RESULTADOS DEL ALGORITMO SIMPLEX ===\n\n");
+    
+    g_string_append_printf(texto, "Valor óptimo: %.4f\n", resultado->valor_optimo);
+    g_string_append_printf(texto, "\nSolución óptima:\n");
+    
+    for (int i = 0; i < num_vars; i++) {
+        const char *nombre = nombres_vars[i] ? nombres_vars[i] : "X?";
+        g_string_append_printf(texto, "  %s = %.4f\n", nombre, resultado->solucion[i]);
+    }
+    
+    switch (resultado->tipo_solucion) {
+        case SOLUCION_UNICA:
+            g_string_append_printf(texto, "\nTipo: SOLUCIÓN ÚNICA\n");
+            break;
+        case SOLUCION_MULTIPLE:
+            g_string_append_printf(texto, "\nTipo: SOLUCIONES MÚLTIPLES\n");
+            break;
+        case NO_ACOTADO:
+            g_string_append_printf(texto, "\nTipo: PROBLEMA NO ACOTADO\n");
+            break;
+        case DEGENERADO:
+            g_string_append_printf(texto, "\nTipo: PROBLEMA DEGENERADO\n");
+            break;
+        case NO_FACTIBLE:
+            g_string_append_printf(texto, "\nTipo: PROBLEMA NO FACTIBLE\n");
+            break;
+    }
+    
+    if (resultado->mensaje) {
+        g_string_append_printf(texto, "\n%s\n", resultado->mensaje);
+    }
+    
+    if (resultado->proceso && resultado->proceso->str) {
+        g_string_append_printf(texto, "\n--- Proceso del algoritmo ---\n%s", resultado->proceso->str);
+    }
+    
+    gtk_label_set_text(GTK_LABEL(label), texto->str);
+    g_string_free(texto, TRUE);
+    
+    // Mostrar diálogo
+    gtk_widget_show_all(dialog);
+    gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+    
+    if (response == GTK_RESPONSE_YES) {
+        // Aquí irá el código para generar el PDF LaTeX
+        g_print("Generar PDF LaTeX\n");
+    }
+    
+    gtk_widget_destroy(dialog);
+}
+
+// Función para construir el problema simplex desde la interfaz
+ResultadoSimplex* construir_y_resolver_simplex(void) {
+    int n = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinVariables));
+    int m = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinRestrictions));
+    
+    if (n <= 0 || m < 0) {
+        return NULL;
+    }
+    
+    // Obtener nombres de variables
+    const char **nombres_vars = g_new0(const char*, n);
+    for (int i = 0; i < n; i++) {
+        GtkWidget *entry = grid_at(gridVariables, 0, i);
+        if (entry && GTK_IS_ENTRY(entry)) {
+            nombres_vars[i] = gtk_entry_get_text(GTK_ENTRY(entry));
+        } else {
+            nombres_vars[i] = "X?";
+        }
+    }
+    
+    // Determinar tipo de problema
+    TipoProblema tipo = (strcmp(type, "MAX") == 0) ? MAXIMIZACION : MINIMIZACION;
+    
+    // Crear tabla simplex
+    TablaSimplex *tabla = crear_tabla_simplex(n, m, tipo);
+    
+    // Establecer función objetivo
+    double *coef_obj = g_new0(double, n);
+    int z_base = 0;
+    GtkWidget *c00 = grid_at(ZGrid, 0, 0);
+    if (c00 && GTK_IS_LABEL(c00)) z_base = 1;
+    
+    for (int i = 0; i < n; i++) {
+        GtkWidget *coef_entry = grid_at(ZGrid, z_base + 3*i, 0);
+        coef_obj[i] = entry_to_double(coef_entry);
+    }
+    establecer_funcion_objetivo_simplex(tabla, coef_obj);
+    g_free(coef_obj);
+    
+    // Agregar restricciones (solo para ≤ por ahora, según el requerimiento)
+    for (int r = 0; r < m; r++) {
+        double *coef_rest = g_new0(double, n);
+        double lado_derecho = 0.0;
+        
+        for (int i = 0; i < n; i++) {
+            GtkWidget *coef_entry = grid_at(gridRestrictions, 0 + 3*i, r);
+            coef_rest[i] = entry_to_double(coef_entry);
+        }
+        
+        GtkWidget *rhs_entry = grid_at(gridRestrictions, 3*n, r);
+        lado_derecho = entry_to_double(rhs_entry);
+        
+        // Solo procesamos restricciones ≤ (índice 0)
+        GtkWidget *rel = grid_at(gridRestrictions, 3*n - 1, r);
+        int tipo_rest = combo_active_index(rel);
+        
+        if (tipo_rest == 0) { // Solo ≤
+            agregar_restriccion_simplex(tabla, r, coef_rest, lado_derecho);
+        } else {
+            // Para ≥ o =, mostrar mensaje de error por ahora
+            g_printerr("Solo se permiten restricciones de tipo '≤'\n");
+            g_free(coef_rest);
+            liberar_tabla_simplex(tabla);
+            return NULL;
+        }
+        
+        g_free(coef_rest);
+    }
+    
+    // Ejecutar simplex
+    ResultadoSimplex *resultado = ejecutar_simplex_completo(tabla, showTables);
+    
+    // Mostrar resultados
+    mostrar_resultados(resultado, n, nombres_vars);
+    
+    // Liberar memoria
+    g_free(nombres_vars);
+    liberar_tabla_simplex(tabla);
+    
+    return resultado;
+}
+
 
 // -------------------------------------------
 // ----------------- BOTONES -----------------
@@ -483,16 +648,69 @@ void on_loadFileButton_clicked(GtkWidget *widget, gpointer data) {
 }
 
 void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
-    Tabla *tab = buildTable();
-    if (!tab) {
-        g_printerr("No se pudo construir la tabla.\n");
+    // Validar que haya datos ingresados
+    int n = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinVariables));
+    int m = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinRestrictions));
+    
+    if (n <= 0) {
+        GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_ERROR,
+                                                  GTK_BUTTONS_OK,
+                                                  "Debe ingresar al menos una variable");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
         return;
     }
-    print_tabla(tab);
-
-    // ... aquí vendría tu implementación de Fase I / Fase II del símplex ...
-
-    free_tabla(tab);
+    
+    if (m <= 0) {
+        GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_ERROR,
+                                                  GTK_BUTTONS_OK,
+                                                  "Debe ingresar al menos una restricción");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+        return;
+    }
+    
+    // Validar que todas las restricciones sean ≤
+    gboolean todas_menor_igual = TRUE;
+    for (int r = 0; r < m; r++) {
+        GtkWidget *rel = grid_at(gridRestrictions, 3*n - 1, r);
+        int tipo_rest = combo_active_index(rel);
+        if (tipo_rest != 0) {
+            todas_menor_igual = FALSE;
+            break;
+        }
+    }
+    
+    if (!todas_menor_igual) {
+        GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_WARNING,
+                                                  GTK_BUTTONS_OK,
+                                                  "Solo se permiten restricciones de tipo '≤' según los requisitos del proyecto");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+        return;
+    }
+    
+    // Construir y resolver el problema
+    ResultadoSimplex *resultado = construir_y_resolver_simplex();
+    
+    if (resultado) {
+        // El resultado se muestra en mostrar_resultados()
+        liberar_resultado(resultado);
+    } else {
+        GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_ERROR,
+                                                  GTK_BUTTONS_OK,
+                                                  "Error al resolver el problema simplex");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+    }
 }
 
 void on_saveButton_clicked(GtkWidget *widget, gpointer data) {
@@ -507,11 +725,6 @@ void on_loadButton_clicked(GtkWidget *widget, gpointer data) {
 void on_exitButton_clicked (GtkButton *exitButton, gpointer data){
 	gtk_main_quit();
 }
-
-
-
-
-
 
 //Main
 int main (int argc, char *argv[]){
