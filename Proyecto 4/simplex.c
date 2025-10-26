@@ -104,7 +104,6 @@ int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote) {
 }
 
 void resolver_empates(double ratios[], bool disponibles[], int size, int *fila_ganadora) {
-    // Estrategia: elegir la fila con el índice más pequeño (regla de Bland)
     double min_ratio = ratios[*fila_ganadora];
     int primera_fila = -1;
     
@@ -169,8 +168,6 @@ bool es_solucion_multiple(TablaSimplex *tabla) {
                 break;
             }
         }
-        
-        // Si no es básica y tiene coeficiente 0 (o muy cercano), hay solución múltiple
         if (!es_basica && fabs(tabla->tabla[0][j]) < EPSILON) {
             return true;
         }
@@ -179,7 +176,6 @@ bool es_solucion_multiple(TablaSimplex *tabla) {
 }
 
 bool es_degenerado(TablaSimplex *tabla) {
-    // Un problema es degenerado si alguna variable básica tiene valor 0
     for (int i = 0; i < tabla->num_rest; i++) {
         int var_basica = tabla->variables_basicas[i];
         double valor = tabla->tabla[i + 1][tabla->num_vars + tabla->num_rest];
@@ -227,7 +223,7 @@ TablaSimplex* copiar_tabla_simplex(const TablaSimplex *original) {
     return copia;
 }
 
-// Función principal adaptada - CORREGIDA
+// Función principal adaptada 
 ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostrar_tablas) {
     ResultadoSimplex *resultado = g_new0(ResultadoSimplex, 1);
     resultado->proceso = g_string_new("");
