@@ -40,9 +40,11 @@ typedef struct {
     TablaSimplex segunda_tabla;
     char *mensaje;
     GString *proceso;
+    GList *tablas_intermedias; // Lista de tablas intermedias para LaTeX
+    int iteraciones;
 } ResultadoSimplex;
 
-// Prototipos de funciones
+// Prototipos de funciones del algoritmo
 TablaSimplex* crear_tabla_simplex(int num_vars, int num_rest, TipoProblema tipo);
 void liberar_tabla_simplex(TablaSimplex *tabla);
 void establecer_funcion_objetivo_simplex(TablaSimplex *tabla, double coeficientes[]);
