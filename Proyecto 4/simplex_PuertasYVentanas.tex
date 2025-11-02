@@ -1,0 +1,117 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{PuertasYVentanas}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre: 2024-1
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\begin{center}
+\includegraphics[width=0.3\textwidth]{dantzig}
+\\
+\small George Dantzig (1914-2005)
+\\
+Creador del Método Simplex
+\end{center}
+\vfill
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\
+
+Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos (en la mayoría de los casos prácticos)
+\item \textbf{Complejidad:} En el peor caso tiene complejidad exponencial, pero en la práctica es muy eficiente
+\item \textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteración
+\end{itemize}
+
+\subsection{Descripción del Método}
+El método Simplex opera moviéndose entre vértices adyacentes del poliedro factible, mejorando el valor de la función objetivo en cada paso hasta alcanzar el óptimo.
+
+\section{Problema Original}
+
+\subsection{Formulación Matemática}
+\textbf{Problema de Maximización}
+
+\[ \text{Maximizar } Z = 3Puertas + 5Ventanas \]
+
+\textbf{Sujeto a:}
+\begin{align*}
+1Puertas + 0Ventanas &\leq 4 \\
+0Puertas + 2Ventanas &\leq 12 \\
+3Puertas + 2Ventanas &\leq 18
+\end{align*}
+
+\textbf{Con:}
+\[ Puertas \geq 0, \quad Ventanas \geq 0 \]
+
+\section{Tabla Final}
+
+La siguiente tabla representa la solución óptima del problema:
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{Puertas} & \textbf{Ventanas} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{$s_3$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & 0 & 0 & 0 & -1.50 & -1 & -36 \\
+\hline
+\textbf{$s$} & 0 & 0 & 1 & 0.33 & -0.33 & 2 \\
+\hline
+\textbf{$Ventanas$} & 0 & 1 & 0 & 0.50 & 0 & 6 \\
+\hline
+\textbf{$Puertas$} & 1 & 0 & 0 & -0.33 & 0.33 & 2 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Solución Óptima}
+
+\textbf{Valor óptimo: } $Z = 36$
+
+\textbf{Solución óptima:}
+\begin{align*}
+Puertas &= 2 \\
+Ventanas &= 6
+\end{align*}
+
+\textbf{Tipo:} Solución Única
+
+El problema tiene una única solución óptima en el punto encontrado.
+
+\textbf{Iteraciones realizadas:} 2
+
+\end{document}

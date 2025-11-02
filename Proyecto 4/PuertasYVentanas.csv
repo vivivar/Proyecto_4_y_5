@@ -1,0 +1,9 @@
+NAME,PuertasYVentanas
+TYPE,MAX
+N,2
+VARS,Puertas,Ventanas
+M,3
+Z,3,5
+R,1,0,<=,4
+R,0,2,<=,12
+R,3,2,<=,18
