@@ -35,12 +35,12 @@ typedef struct {
 typedef struct {
     double *solucion;
     double valor_optimo;
-    TipoSolucion tipo_solucion;
-    TablaSimplex tabla_final;
-    TablaSimplex segunda_tabla;
-    char *mensaje;
     GString *proceso;
-    GList *tablas_intermedias; // Lista de tablas intermedias para LaTeX
+    char *mensaje;
+    GList *tablas_intermedias;
+    TablaSimplex *tabla_final;      // Cambiar a puntero
+    TablaSimplex *segunda_tabla;    // Cambiar a puntero
+    TipoSolucion tipo_solucion;
     int iteraciones;
 } ResultadoSimplex;
 

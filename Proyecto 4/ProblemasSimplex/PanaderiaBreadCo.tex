@@ -1,0 +1,188 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{PanaderiaBreadCo}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre II: 2025
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\begin{center}
+\textbf{George Dantzig (1914-2005)}
+\\
+Creador del Método Simplex
+\end{center}
+\vfill
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\
+
+Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos (en la mayoría de los casos prácticos)
+\item \textbf{Complejidad:} En el peor caso tiene complejidad exponencial, pero en la práctica es muy eficiente
+\item \textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteración
+\end{itemize}
+
+\subsection{Descripción del Método}
+El método Simplex opera moviéndose entre vértices adyacentes del poliedro factible, mejorando el valor de la función objetivo en cada paso hasta alcanzar el óptimo.
+
+\section{Problema Original}
+
+\subsection{Formulación Matemática}
+\textbf{Problema de Maximización}
+
+\[ \text{Maximizar } Z = 36x_{1} + 30x_{2} -3x_{3} -4x_{4} \]
+
+\textbf{Sujeto a:}
+\begin{align*}
+1x_{1} + 1x_{2} -1x_{3} + 0x_{4} &\leq 5 \\
+6x_{1} + 5x_{2} + 0x_{3} -1x_{4} &\leq 10
+\end{align*}
+
+\textbf{Con:}
+\[ x_{1} \geq 0, \quad x_{2} \geq 0, \quad x_{3} \geq 0, \quad x_{4} \geq 0 \]
+
+\section{Tabla Inicial}
+
+La tabla inicial del método Simplex incluye las variables de holgura para convertir las desigualdades en igualdades.
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{X1} & \textbf{X2} & \textbf{X3} & \textbf{X4} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & -36 & -30 & 3 & 4 & 0 & 0 & 0 \\
+\hline
+\textbf{$s_1$} & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\textbf{$s_2$} & 6 & 5 & 0 & -1 & 0 & 1 & 10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Tablas Intermedias}
+
+A continuación se presentan las tablas intermedias generadas durante la ejecución del algoritmo Simplex.
+
+\subsection{Iteración 0}
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{X1} & \textbf{X2} & \textbf{X3} & \textbf{X4} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & -36 & -30 & 3 & 4 & 0 & 0 & 0 \\
+\hline
+\textbf{$s_1$} & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\textbf{$s_2$} & 6 & 5 & 0 & -1 & 0 & 1 & 10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Iteración 1}
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{X1} & \textbf{X2} & \textbf{X3} & \textbf{X4} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & 0 & 0 & 3 & -2 & 0 & 6 & 60 \\
+\hline
+\textbf{$s_1$} & 0 & 0.17 & -1 & 0.17 & 1 & -0.17 & 3.33 \\
+\hline
+\textbf{$s_2$} & 1 & 0.83 & 0 & -0.17 & 0 & 0.17 & 1.67 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Iteración 2}
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{X1} & \textbf{X2} & \textbf{X3} & \textbf{X4} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & 0 & 2 & -9 & 0 & 12 & 4 & 100 \\
+\hline
+\textbf{$s_1$} & 0 & 1 & -6 & 1 & 6 & -1 & 20 \\
+\hline
+\textbf{$s_2$} & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Tabla Final}
+
+La siguiente tabla representa la solución óptima del problema:
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{X1} & \textbf{X2} & \textbf{X3} & \textbf{X4} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & 0 & 2 & -9 & 0 & 12 & 4 & 100 \\
+\hline
+\textbf{$X4$} & 0 & 1 & -6 & 1 & 6 & -1 & 20 \\
+\hline
+\textbf{$X1$} & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Solución Óptima}
+
+\textbf{Valor óptimo: } $Z = 100$
+
+\textbf{Solución óptima:}
+\begin{align*}
+x_{1} &= 5 \\
+x_{2} &= 0 \\
+x_{3} &= 0 \\
+x_{4} &= 20
+\end{align*}
+
+\textbf{Tipo:} Problema No Acotado
+
+El problema no tiene solución óptima finita. La función objetivo puede mejorar indefinidamente.
+
+\textbf{Iteraciones realizadas:} 2
+
+\textbf{Observaciones:} El problema es no acotado
+
+\end{document}

@@ -1,8 +1,8 @@
 #ifndef LATEX_H
 #define LATEX_H
 
-#include "simplex.h"
 #include <glib.h>
+#include "simplex.h"
 
 // Estructura para información del problema
 typedef struct {
@@ -26,6 +26,6 @@ void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaIn
 void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInfo *info);
 void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info);
 void generar_solucion_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info);
-void compilar_y_mostrar_pdf(const char *nombre_archivo_tex);
+void compilar_y_mostrar_pdf(const char *nombre_archivo_tex, const char *nombre_archivo_pdf);
 
 #endif

@@ -1,6 +1,7 @@
 #include "latex.h"
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h> 
 
 
 void formatear_numero(double valor, char *buffer, size_t buffer_size) {
@@ -11,6 +12,19 @@ void formatear_numero(double valor, char *buffer, size_t buffer_size) {
         for (char *p = buffer; *p; p++) {
             if (*p == ',') *p = '.';
         }
+    }
+}
+
+void formatear_nombre_variable_latex(const char *nombre_original, char *buffer, size_t buffer_size) {
+    if (nombre_original && (nombre_original[0] == 'X' || nombre_original[0] == 'x')) {
+        int num_var = atoi(nombre_original + 1);
+        if (num_var > 0) {
+            snprintf(buffer, buffer_size, "x_{%d}", num_var);
+        } else {
+            snprintf(buffer, buffer_size, "%s", nombre_original);
+        }
+    } else {
+        snprintf(buffer, buffer_size, "%s", nombre_original);
     }
 }
 
@@ -26,6 +40,7 @@ void generar_portada_latex(GString *latex, const char *nombre_problema) {
         "\\usepackage{geometry}\n"
         "\\geometry{margin=2.5cm}\n"
         "\\usepackage{fancyhdr}\n"
+        "\\setlength{\\headheight}{14.5pt}\n"
         "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
         "\\rhead{Investigación de Operaciones}\n"
@@ -38,7 +53,7 @@ void generar_portada_latex(GString *latex, const char *nombre_problema) {
         "Viviana Vargas\\\\\n"
         "\\\\\n"
         "Curso: Investigación de Operaciones\\\\\n"
-        "Semestre: 2024-1\n"
+        "Semestre II: 2025\n"
         "}\n"
         "\\date{\\today}\n"
         "\n"
@@ -49,9 +64,7 @@ void generar_portada_latex(GString *latex, const char *nombre_problema) {
         "\n"
         "\\vfill\n"
         "\\begin{center}\n"
-        "\\includegraphics[width=0.3\\textwidth]{dantzig}\n"
-        "\\\\\n"
-        "\\small George Dantzig (1914-2005)\n"
+        "\\textbf{George Dantzig (1914-2005)}\n"
         "\\\\\n"
         "Creador del Método Simplex\n"
         "\\end{center}\n"
@@ -107,7 +120,17 @@ void generar_problema_original_latex(GString *latex, ProblemaInfo *info) {
         if (i > 0 && info->coef_obj[i] >= 0) {
             g_string_append(latex, "+ ");
         }
-        g_string_append_printf(latex, "%s%s ", num_buffer, info->nombres_vars[i]);
+        const char *nombre_var = info->nombres_vars[i];
+        if (nombre_var && (nombre_var[0] == 'X' || nombre_var[0] == 'x')) {
+            int num_var = atoi(nombre_var + 1);
+            if (num_var > 0) {
+                g_string_append_printf(latex, "%sx_{%d} ", num_buffer, num_var);
+            } else {
+                g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+            }
+        } else {
+            g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+        }
     }
     g_string_append(latex, "\\]\n\n");
     
@@ -121,7 +144,17 @@ void generar_problema_original_latex(GString *latex, ProblemaInfo *info) {
             if (j > 0 && info->coef_rest[i][j] >= 0) {
                 g_string_append(latex, "+ ");
             }
-            g_string_append_printf(latex, "%s%s ", num_buffer, info->nombres_vars[j]);
+            const char *nombre_var = info->nombres_vars[j];
+            if (nombre_var && (nombre_var[0] == 'X' || nombre_var[0] == 'x')) {
+                int num_var = atoi(nombre_var + 1);
+                if (num_var > 0) {
+                    g_string_append_printf(latex, "%sx_{%d} ", num_buffer, num_var);
+                } else {
+                    g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+                }
+            } else {
+                g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+            }
         }
         
         char rhs_buffer[32];
@@ -133,11 +166,20 @@ void generar_problema_original_latex(GString *latex, ProblemaInfo *info) {
         }
     }
     g_string_append(latex, "\n\\end{align*}\n\n");
-    
-    // No negatividad
     g_string_append(latex, "\\textbf{Con:}\n\\[ ");
     for (int i = 0; i < info->num_vars; i++) {
-        g_string_append_printf(latex, "%s \\geq 0", info->nombres_vars[i]);
+        const char *nombre_var = info->nombres_vars[i];
+        if (nombre_var && (nombre_var[0] == 'X' || nombre_var[0] == 'x')) {
+            int num_var = atoi(nombre_var + 1);
+            if (num_var > 0) {
+                g_string_append_printf(latex, "x_{%d} \\geq 0", num_var);
+            } else {
+                g_string_append_printf(latex, "%s \\geq 0", nombre_var);
+            }
+        } else {
+            g_string_append_printf(latex, "%s \\geq 0", nombre_var);
+        }
+        
         if (i < info->num_vars - 1) {
             g_string_append(latex, ", \\quad ");
         }
@@ -278,6 +320,10 @@ void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, Prob
     g_string_append_printf(latex,
         "\\section{Tabla Final}\n"
         "\n");
+    if (!resultado->tabla_final) {
+        g_string_append(latex, "\\textbf{Error:} No se pudo generar la tabla final.\n\n");
+        return;
+    }
     
     if (resultado->tipo_solucion == SOLUCION_MULTIPLE) {
         g_string_append(latex, "\\textbf{Soluciones Múltiples:} Se encontraron dos tablas finales que representan diferentes soluciones óptimas.\n\n");
@@ -288,7 +334,7 @@ void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, Prob
     }
     
     // Primera tabla final
-    TablaSimplex *tabla = &resultado->tabla_final;
+    TablaSimplex *tabla = resultado->tabla_final;
     
     g_string_append(latex, "\\begin{center}\n");
     g_string_append(latex, "\\small\n");
@@ -345,12 +391,10 @@ void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, Prob
     
     g_string_append(latex, "\\end{tabular}\n");
     g_string_append(latex, "\\end{center}\n\n");
-    
-    // Segunda tabla para soluciones múltiples
-    if (resultado->tipo_solucion == SOLUCION_MULTIPLE) {
+    if (resultado->tipo_solucion == SOLUCION_MULTIPLE && resultado->segunda_tabla) {
         g_string_append(latex, "\\subsection{Segunda Solución Óptima}\n");
         
-        tabla = &resultado->segunda_tabla;
+        tabla = resultado->segunda_tabla;
         
         g_string_append(latex, "\\begin{center}\n");
         g_string_append(latex, "\\small\n");
@@ -417,20 +461,24 @@ void generar_solucion_latex(GString *latex, ResultadoSimplex *resultado, Problem
     
     char valor_optimo_buffer[32];
     formatear_numero(resultado->valor_optimo, valor_optimo_buffer, sizeof(valor_optimo_buffer));
+    
     g_string_append_printf(latex, "\\textbf{Valor óptimo: } $Z = %s$\n\n", valor_optimo_buffer);
     
     g_string_append(latex, "\\textbf{Solución óptima:}\n\\begin{align*}\n");
     for (int i = 0; i < info->num_vars; i++) {
         char sol_buffer[32];
         formatear_numero(resultado->solucion[i], sol_buffer, sizeof(sol_buffer));
-        g_string_append_printf(latex, "%s &= %s", info->nombres_vars[i], sol_buffer);
+        const char *nombre_var = info->nombres_vars[i];
+        char var_latex[32];
+        formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
+        
+        g_string_append_printf(latex, "%s &= %s", var_latex, sol_buffer);
         if (i < info->num_vars - 1) {
             g_string_append(latex, " \\\\\n");
         }
     }
     g_string_append(latex, "\n\\end{align*}\n\n");
     
-    // ... el resto de la función se mantiene igual
     switch (resultado->tipo_solucion) {
         case SOLUCION_UNICA:
             g_string_append(latex, "\\textbf{Tipo:} Solución Única\n\n");
@@ -508,13 +556,21 @@ void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info,
     g_string_free(latex, TRUE);
 }
 
-void compilar_y_mostrar_pdf(const char *nombre_archivo_tex) {
-    char comando[512];
+void compilar_y_mostrar_pdf(const char *nombre_archivo_tex, const char *nombre_archivo_pdf) {
+    char comando1[512];
+    char comando2[512];
+    char comando3[512];
+    system("mkdir -p ProblemasSimplex");
+    snprintf(comando3, sizeof(comando3), "mv %s ProblemasSimplex/ 2>/dev/null", nombre_archivo_tex);
+    system(comando3);
+    snprintf(comando1, sizeof(comando1), "cd ProblemasSimplex && pdflatex -interaction=nonstopmode %s", nombre_archivo_tex);
+    int result1 = system(comando1);
+    int result2 = system(comando1); 
     
-    // Compilar a PDF 
-    snprintf(comando, sizeof(comando), "pdflatex -interaction=nonstopmode \"%s\" && evince \"%.*s.pdf\" &", 
-             nombre_archivo_tex, 
-             (int)(strlen(nombre_archivo_tex) - 4), nombre_archivo_tex);
+    if (result1 != 0 || result2 != 0) {
+        g_printerr("Error al compilar el archivo LaTeX\n");
+    }
     
-    system(comando);
+    snprintf(comando2, sizeof(comando2), "cd ProblemasSimplex && if [ -f %s ]; then evince --presentation %s & fi", nombre_archivo_pdf, nombre_archivo_pdf);
+    system(comando2);
 }
