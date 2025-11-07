@@ -17,6 +17,7 @@ Viviana Vargas
 #include <math.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <time.h>
 
 GtkWidget *window;
 GtkWidget *fixed;
@@ -67,6 +68,7 @@ GtkCssProvider *cssProvider;
 const char *type = "MAX";
 gboolean showTables = FALSE;
 void compilar_y_mostrar_pdf(const char *nombre_archivo_tex, const char *nombre_archivo_pdf);
+void calcular_soluciones_adicionales(ResultadoSimplex *resultado, ProblemaInfo *info);
 
 typedef struct {
     double **A;
@@ -406,6 +408,36 @@ static ResultadoSimplex* construir_y_resolver_simplex(void) {
     return resultado;
 }
 
+// Función para calcular soluciones adicionales (en main.c)
+void calcular_soluciones_adicionales(ResultadoSimplex *resultado, ProblemaInfo *info) {
+    if (!resultado || resultado->tipo_solucion != SOLUCION_MULTIPLE) return;
+    
+    resultado->num_soluciones_adicionales = 3;
+    resultado->soluciones_adicionales = g_new0(double*, 3);
+    
+    double *sol2 = g_new0(double, info->num_vars);
+    if (resultado->segunda_tabla) {
+        extraer_solucion(resultado->segunda_tabla, sol2);
+    } else {
+        for (int i = 0; i < info->num_vars; i++) {
+            sol2[i] = 0.0;
+        }
+    }
+    
+    for (int k = 0; k < 3; k++) {
+        resultado->soluciones_adicionales[k] = g_new0(double, info->num_vars);
+        
+        double lambda = (k + 1) * 0.25; 
+        
+        for (int i = 0; i < info->num_vars; i++) {
+            resultado->soluciones_adicionales[k][i] = 
+                lambda * resultado->solucion[i] + (1 - lambda) * sol2[i];
+        }
+    }
+    
+    g_free(sol2);
+}
+
 // -------------------------------------------
 // ----------------- BOTONES -----------------
 // -------------------------------------------
@@ -476,7 +508,7 @@ void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
     }
     
     ResultadoSimplex *resultado = construir_y_resolver_simplex();
-    
+
     if (resultado) {
         const char **nombres_vars = g_new0(const char*, n);
         for (int i = 0; i < n; i++) {
@@ -520,6 +552,10 @@ void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
             
             GtkWidget *rhs_entry = grid_at(gridRestrictions, 3*n, r);
             info.lados_derechos[r] = entry_to_double(rhs_entry);
+        }
+
+        if (resultado && resultado->tipo_solucion == SOLUCION_MULTIPLE) {
+            calcular_soluciones_adicionales(resultado, &info);
         }
         
         char nombre_archivo_tex[256];
@@ -585,6 +621,8 @@ void set_css (GtkCssProvider *cssProvider, GtkWidget *widget){
 
 //Main
 int main (int argc, char *argv[]){
+    srand(time(NULL));
+    
     gtk_init(&argc, &argv);
     
     builder =  gtk_builder_new_from_file ("Simplex.glade");

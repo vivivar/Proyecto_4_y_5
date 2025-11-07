@@ -33,16 +33,43 @@ typedef struct {
 } TablaSimplex;
 
 typedef struct {
+    int iteracion;
+    int variable_entra;
+    int variable_sale;
+    int fila_pivote;
+    int columna_pivote;
+    double elemento_pivote;
+} OperacionPivoteo;
+
+typedef struct {
     double *solucion;
     double valor_optimo;
     GString *proceso;
     char *mensaje;
     GList *tablas_intermedias;
-    TablaSimplex *tabla_final;      // Cambiar a puntero
-    TablaSimplex *segunda_tabla;    // Cambiar a puntero
+    TablaSimplex *tabla_final;      
+    TablaSimplex *segunda_tabla;    
     TipoSolucion tipo_solucion;
     int iteraciones;
+    double **soluciones_adicionales;
+    int num_soluciones_adicionales;
+    GList *operaciones_pivoteo; 
+    int *variables_entran;      
+    int *variables_salen;      
+    int *filas_pivote;          
+    int *columnas_pivote;       
 } ResultadoSimplex;
+
+typedef struct {
+    const char **nombres_vars;
+    int num_vars;
+    int num_rest;
+    const char *nombre_problema;
+    const char *tipo_problema;
+    double *coef_obj;
+    double **coef_rest;
+    double *lados_derechos;
+} ProblemaInfo;
 
 // Prototipos de funciones del algoritmo
 TablaSimplex* crear_tabla_simplex(int num_vars, int num_rest, TipoProblema tipo);
@@ -53,5 +80,17 @@ ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostra
 void imprimir_tabla_simplex(TablaSimplex *tabla, GString *output);
 void liberar_resultado(ResultadoSimplex *resultado);
 TablaSimplex* copiar_tabla_simplex(const TablaSimplex *original);
+
+// Agregar estos prototipos que faltan
+void extraer_solucion(TablaSimplex *tabla, double solucion[]);
+bool es_optima(TablaSimplex *tabla);
+int encontrar_columna_pivote(TablaSimplex *tabla);
+int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote);
+void pivotear(TablaSimplex *tabla, int fila_pivote, int col_pivote);
+bool es_no_acotado(TablaSimplex *tabla, int col_pivote);
+bool es_solucion_multiple(TablaSimplex *tabla);
+bool es_degenerado(TablaSimplex *tabla);
+int encontrar_variable_no_basica_con_cero(TablaSimplex *tabla);
+bool pivotear_para_segunda_solucion(TablaSimplex *tabla, int variable_cero);
 
 #endif

@@ -1,5 +1,7 @@
 #include "simplex.h"
 #include <string.h>
+#include <stdlib.h> 
+#include <time.h>   
 
 TablaSimplex* crear_tabla_simplex(int num_vars, int num_rest, TipoProblema tipo) {
     TablaSimplex *tabla = g_new0(TablaSimplex, 1);
@@ -102,21 +104,41 @@ int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote) {
     
     int fila_pivote = -1;
     double min_ratio = 1e9;
+    int empates[tabla->num_rest]; 
+    int num_empates = 0;
+    bool hubo_empate = false;
     
     for (int i = 1; i <= tabla->num_rest; i++) {
         if (tabla->tabla[i][col_pivote] > EPSILON) {
             double ratio = tabla->tabla[i][tabla->num_vars + tabla->num_rest] / 
                           tabla->tabla[i][col_pivote];
-            if (ratio >= 0 && (ratio < min_ratio - EPSILON || fila_pivote == -1)) {
-                min_ratio = ratio;
-                fila_pivote = i - 1;
+            
+            if (ratio >= 0) {
+                if (fabs(ratio - min_ratio) < EPSILON) {
+                    empates[num_empates++] = i - 1;
+                    hubo_empate = true;
+                } else if (ratio < min_ratio - EPSILON || fila_pivote == -1) {
+                    min_ratio = ratio;
+                    fila_pivote = i - 1;
+                    num_empates = 0; 
+                    empates[num_empates++] = i - 1;
+                    hubo_empate = false;
+                }
             }
         }
+    }
+    
+    if (num_empates > 1) {
+        int indice_aleatorio = rand() % num_empates;
+        fila_pivote = empates[indice_aleatorio];
+        g_print("EMPATE DETECTADO: Se eligió arbitrariamente la fila %d de %d opciones\n", 
+               fila_pivote + 1, num_empates);
     }
     
     g_print("Fila pivote seleccionada: %d\n", fila_pivote);
     return fila_pivote;
 }
+
 void pivotear(TablaSimplex *tabla, int fila_pivote, int col_pivote) {
     if (fila_pivote == -1 || col_pivote == -1) return;
     
@@ -169,13 +191,27 @@ bool es_solucion_multiple(TablaSimplex *tabla) {
 }
 
 bool es_degenerado(TablaSimplex *tabla) {
+    bool degenerado = false;
+    int variables_cero = 0;
+    
     for (int i = 0; i < tabla->num_rest; i++) {
         double valor = tabla->tabla[i + 1][tabla->num_vars + tabla->num_rest];
+        g_print("Verificando variable básica en fila %d: valor = %.15f\n", i+1, valor);
+        
         if (fabs(valor) < EPSILON) {
-            return true;
+            g_print("DEGENERACIÓN DETECTADA: Variable básica en fila %d tiene valor cero: %.15f\n", i+1, valor);
+            variables_cero++;
+            degenerado = true;
         }
     }
-    return false;
+    
+    if (degenerado) {
+        g_print("PROBLEMA DEGENERADO CONFIRMADO: %d variable(s) básica(s) con valor cero\n", variables_cero);
+    } else {
+        g_print("No se detectó degeneración - todas las variables básicas tienen valores distintos de cero\n");
+    }
+    
+    return degenerado;
 }
 
 void extraer_solucion(TablaSimplex *tabla, double solucion[]) {
@@ -190,6 +226,55 @@ void extraer_solucion(TablaSimplex *tabla, double solucion[]) {
         }
     }
 }
+
+int encontrar_variable_no_basica_con_cero(TablaSimplex *tabla) {
+    for (int j = 0; j < tabla->num_vars; j++) {
+        bool es_basica = false;
+        for (int i = 0; i < tabla->num_rest; i++) {
+            if (tabla->variables_basicas[i] == j) {
+                es_basica = true;
+                break;
+            }
+        }
+        
+        if (!es_basica && fabs(tabla->tabla[0][j]) < EPSILON) {
+            return j;
+        }
+    }
+    return -1;
+}
+
+bool pivotear_para_segunda_solucion(TablaSimplex *tabla, int variable_cero) {
+    if (variable_cero == -1) return false;
+    
+    g_print("Encontrada variable no básica con coeficiente cero: X%d\n", variable_cero + 1);
+    
+    int fila_pivote = -1;
+    double min_ratio = 1e9;
+    
+    for (int i = 1; i <= tabla->num_rest; i++) {
+        if (tabla->tabla[i][variable_cero] > EPSILON) {
+            double ratio = tabla->tabla[i][tabla->num_vars + tabla->num_rest] / 
+                          tabla->tabla[i][variable_cero];
+            if (ratio >= 0 && (ratio < min_ratio - EPSILON || fila_pivote == -1)) {
+                min_ratio = ratio;
+                fila_pivote = i - 1;
+            }
+        }
+    }
+    
+    if (fila_pivote == -1) {
+        g_print("No se encontró fila pivote válida para variable X%d\n", variable_cero + 1);
+        return false;
+    }
+    
+    g_print("Pivoteando en fila %d, columna %d para segunda solución\n", 
+           fila_pivote + 1, variable_cero);
+    
+    pivotear(tabla, fila_pivote, variable_cero);
+    return true;
+}
+
 
 TablaSimplex* copiar_tabla_simplex(const TablaSimplex *original) {
     if (!original) return NULL;
@@ -215,9 +300,12 @@ ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostra
     resultado->tabla_final = NULL;  
     resultado->segunda_tabla = NULL; 
     resultado->iteraciones = 0;
+    resultado->soluciones_adicionales = NULL;
+    resultado->num_soluciones_adicionales = 0;
+    resultado->operaciones_pivoteo = NULL;
     
     int iteracion = 0;
-    const int MAX_ITERACIONES = 100;
+    const int MAX_ITERACIONES = 50;
     
     g_string_append_printf(resultado->proceso, "--- INICIANDO ALGORITMO SIMPLEX ---\n");
     g_string_append_printf(resultado->proceso, "Tipo de problema: %s\n", 
@@ -265,6 +353,24 @@ ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostra
             resultado->mensaje = g_strdup("No se encontró fila pivote válida");
             break;
         }
+
+        OperacionPivoteo *op = g_new0(OperacionPivoteo, 1);
+        op->iteracion = iteracion;
+        op->columna_pivote = col_pivote;
+        op->fila_pivote = fila_pivote;
+        op->variable_entra = col_pivote;
+        if (fila_pivote >= 0 && fila_pivote < tabla_trabajo->num_rest) {
+            op->variable_sale = tabla_trabajo->variables_basicas[fila_pivote];
+        } else {
+            op->variable_sale = -1;
+        }
+        if (fila_pivote >= 0 && col_pivote >= 0) {
+            op->elemento_pivote = tabla_trabajo->tabla[fila_pivote + 1][col_pivote];
+        } else {
+            op->elemento_pivote = 0.0;
+        }
+
+        resultado->operaciones_pivoteo = g_list_append(resultado->operaciones_pivoteo, op);
         
         g_string_append_printf(resultado->proceso, "Pivoteando en (%d, %d)\n", fila_pivote + 1, col_pivote);
         pivotear(tabla_trabajo, fila_pivote, col_pivote);
@@ -287,19 +393,48 @@ ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostra
     
     extraer_solucion(tabla_trabajo, resultado->solucion);
     
-    if (tabla_trabajo->tipo == MAXIMIZACION) {
-        resultado->valor_optimo = tabla_trabajo->tabla[0][tabla_trabajo->num_vars + tabla_trabajo->num_rest];
-    } else {
-        resultado->valor_optimo = -tabla_trabajo->tabla[0][tabla_trabajo->num_vars + tabla_trabajo->num_rest];
+    resultado->valor_optimo = tabla_trabajo->tabla[0][tabla_trabajo->num_vars + tabla_trabajo->num_rest];
+    
+    bool problema_degenerado = es_degenerado(tabla_trabajo);
+    if (problema_degenerado) {
+        g_string_append_printf(resultado->proceso, "PROBLEMA DEGENERADO detectado\n");
+        g_string_append_printf(resultado->proceso, "Al menos una variable básica tiene valor cero\n");
+        resultado->tipo_solucion = DEGENERADO;
+        
+        if (!resultado->mensaje) {
+            resultado->mensaje = g_strdup("Se detectó degeneración en el problema");
+        }
     }
     
-    // Verificar soluciones múltiples
-    if (resultado->tipo_solucion == SOLUCION_UNICA && es_solucion_multiple(tabla_trabajo)) {
+    if (resultado->tipo_solucion != DEGENERADO && es_solucion_multiple(tabla_trabajo)) {
         g_string_append_printf(resultado->proceso, "SOLUCION MULTIPLE detectada\n");
         resultado->tipo_solucion = SOLUCION_MULTIPLE;
         resultado->mensaje = g_strdup("Se detectaron soluciones múltiples");
         resultado->tabla_final = copiar_tabla_simplex(tabla_trabajo);
-        resultado->segunda_tabla = copiar_tabla_simplex(tabla_trabajo);
+        
+        int variable_cero = encontrar_variable_no_basica_con_cero(tabla_trabajo);
+        
+        if (variable_cero != -1) {
+            g_string_append_printf(resultado->proceso, "Variable no básica con coeficiente cero: X%d\n", variable_cero + 1);
+            
+            resultado->segunda_tabla = copiar_tabla_simplex(tabla_trabajo);
+            
+            if (pivotear_para_segunda_solucion(resultado->segunda_tabla, variable_cero)) {
+                g_string_append_printf(resultado->proceso, "Segunda solución obtenida exitosamente\n");
+                
+                if (mostrar_tablas) {
+                    resultado->tablas_intermedias = g_list_append(resultado->tablas_intermedias, 
+                        copiar_tabla_simplex(resultado->segunda_tabla));
+                }
+            } else {
+                g_string_append_printf(resultado->proceso, "No se pudo obtener segunda solución\n");
+                liberar_tabla_simplex(resultado->segunda_tabla);
+                resultado->segunda_tabla = NULL;
+            }
+        } else {
+            g_string_append_printf(resultado->proceso, "No se encontró variable no básica con coeficiente cero\n");
+            resultado->segunda_tabla = NULL;
+        }
     } else {
         resultado->tabla_final = copiar_tabla_simplex(tabla_trabajo);
     }
@@ -311,7 +446,6 @@ ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostra
     liberar_tabla_simplex(tabla_trabajo);
     return resultado;
 }
-
 
 void imprimir_tabla_simplex(TablaSimplex *tabla, GString *output) {
     if (!output) return;
@@ -343,6 +477,17 @@ void liberar_resultado(ResultadoSimplex *resultado) {
         resultado->solucion = NULL;
     }
     
+    if (resultado->soluciones_adicionales) {
+        for (int i = 0; i < resultado->num_soluciones_adicionales; i++) {
+            if (resultado->soluciones_adicionales[i]) {
+                g_free(resultado->soluciones_adicionales[i]);
+            }
+        }
+        g_free(resultado->soluciones_adicionales);
+        resultado->soluciones_adicionales = NULL;
+    }
+    resultado->num_soluciones_adicionales = 0;
+    
     if (resultado->proceso) {
         g_string_free(resultado->proceso, TRUE);
         resultado->proceso = NULL;
@@ -373,6 +518,38 @@ void liberar_resultado(ResultadoSimplex *resultado) {
         }
         g_list_free(resultado->tablas_intermedias);
         resultado->tablas_intermedias = NULL;
+    }
+    
+    if (resultado->operaciones_pivoteo) {
+        GList *iter = resultado->operaciones_pivoteo;
+        while (iter) {
+            if (iter->data) {
+                g_free(iter->data);
+            }
+            iter = g_list_next(iter);
+        }
+        g_list_free(resultado->operaciones_pivoteo);
+        resultado->operaciones_pivoteo = NULL;
+    }
+    
+    if (resultado->variables_entran) {
+        g_free(resultado->variables_entran);
+        resultado->variables_entran = NULL;
+    }
+    
+    if (resultado->variables_salen) {
+        g_free(resultado->variables_salen);
+        resultado->variables_salen = NULL;
+    }
+    
+    if (resultado->filas_pivote) {
+        g_free(resultado->filas_pivote);
+        resultado->filas_pivote = NULL;
+    }
+    
+    if (resultado->columnas_pivote) {
+        g_free(resultado->columnas_pivote);
+        resultado->columnas_pivote = NULL;
     }
     
     g_free(resultado);
