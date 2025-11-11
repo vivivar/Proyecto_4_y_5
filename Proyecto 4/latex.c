@@ -232,7 +232,7 @@ void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaIn
     }
     g_string_append(latex, "\\textbf{b} \\\\\n\\hline\n");
     g_string_append(latex, "\\textbf{Z} & ");
-    g_string_append(latex, "1 & "); // Coeficiente de Z 
+    g_string_append(latex, "1 & "); 
     
     for (int j = 0; j < tabla->num_vars; j++) {
         char num_buffer[32];
@@ -266,7 +266,7 @@ void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaIn
         
         for (int j = 0; j < tabla->num_rest; j++) {
             if (j == i - 1) {
-                g_string_append(latex, "1 & "); // Variable de holgura correspondiente
+                g_string_append(latex, "1 & ");
             } else {
                 g_string_append(latex, "0 & ");
             }
@@ -280,17 +280,10 @@ void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaIn
     g_string_append(latex, "\\end{tabular}\n");
     g_string_append(latex, "\\end{center}\n\n");
     
-    g_string_append_printf(latex,
-        "\\textbf{Explicación de la tabla inicial:}\n\n"
-        "\\begin{itemize}\n"
-        "\\item \\textbf{Variable:} Indica las variables básicas actuales\n"
-        "\\item \\textbf{Z:} Coeficiente de la función objetivo (siempre 1)\n");
-    
     for (int j = 0; j < tabla->num_vars; j++) {
         const char *nombre_var = info->nombres_vars[j];
         char var_latex[32];
         formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-        g_string_append_printf(latex, "\\item \\textbf{%s:} Coeficientes de las variables de decisi\\'on\n", var_latex);
     }
     
     for (int j = 0; j < tabla->num_rest; j++) {
@@ -305,7 +298,7 @@ void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaIn
 }
 
 void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInfo *info, ResultadoSimplex *resultado) {
-    if (!tablas || g_list_length(tablas) <= 1) return;
+    if (!tablas) return;
     
     g_string_append_printf(latex,
         "\\section{Proceso Iterativo del Método Simplex}\n"
@@ -317,15 +310,14 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
     
     while (iter) {
         TablaSimplex *tabla = (TablaSimplex*)iter->data;
-        
+    
         if (iteracion == 0) {
-            iter = g_list_next(iter);
-            iteracion++;
-            continue;
+            g_string_append_printf(latex, "\\subsection{Tabla Inicial}\n");
+        } else {
+            g_string_append_printf(latex, "\\subsection{Iteración %d}\n", iteracion);
         }
         
-        g_string_append_printf(latex, "\\subsection{Iteración %d}\n", iteracion);
-        if (resultado->operaciones_pivoteo && iteracion <= g_list_length(resultado->operaciones_pivoteo)) {
+        if (iteracion > 0 && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
             GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
             if (op_iter) {
                 OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
@@ -352,10 +344,15 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
                                          op->variable_sale - tabla->num_vars + 1);
                 }
                 
-                g_string_append_printf(latex, "\\item \\textbf{Elemento pivote:} %.4f (fila %d, columna %d)\n", 
-                                     op->elemento_pivote, op->fila_pivote + 1, op->columna_pivote + 1);
+                g_string_append_printf(latex,
+                "\\item \\textbf{Elemento pivote:} %.0f (fila %d, columna %d)\n",
+                op->elemento_pivote, op->fila_pivote + 1, op->columna_pivote + 1);
+
                 g_string_append_printf(latex, "\\end{itemize}\n\n");
             }
+        } else if (iteracion == 0) {
+            g_string_append_printf(latex, 
+                "\\textbf{Estado inicial:} Variables de holgura en la base.\\par\\smallskip\n\n");
         }
         
         g_string_append_printf(latex,
@@ -688,24 +685,6 @@ void generar_explicacion_degenerado_latex(GString *latex, ResultadoSimplex *resu
         resultado->iteraciones);
 }
 
-void generar_explicacion_minimizacion_latex(GString *latex) {
-    g_string_append_printf(latex,
-        "\\subsection{Nota sobre Problemas de Minimización}\n"
-        "\n"
-        "Para problemas de \\textbf{minimización}, el valor óptimo de Z se toma directamente de la tabla Simplex final:\n"
-        "\\begin{itemize}\n"
-        "\\item No se aplica cambio de signo al valor de Z\n"
-        "\\item El valor reportado es el valor real de la función objetivo\n"
-        "\\item Si el valor es negativo, indica un costo mínimo negativo\n"
-        "\\item Esto es matemáticamente correcto y coherente con la formulación\n"
-        "\\end{itemize}\n\n"
-        "\\textbf{Forma estándar para minimización:}\n"
-        "\\[\n"
-        "\\text{Minimizar } Z = c^Tx \\quad \\text{sujeto a } Ax \\leq b, x \\geq 0\n"
-        "\\]\n"
-        "El valor óptimo Z* se lee directamente de la tabla sin modificaciones.\n\n");
-}
-
 void generar_soluciones_adicionales_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
     if (resultado->tipo_solucion != SOLUCION_MULTIPLE || !resultado->soluciones_adicionales) return;
     
@@ -849,18 +828,13 @@ void generar_solucion_latex(GString *latex, ResultadoSimplex *resultado, Problem
             g_string_append(latex, "El problema no tiene solución factible. El conjunto de restricciones es incompatible.\n\n");
             break;
     }
-    
-    if (info->tipo_problema && strcmp(info->tipo_problema, "MIN") == 0) {
-        generar_explicacion_minimizacion_latex(latex);
-    }
-    
+
     g_string_append_printf(latex, "\\textbf{Iteraciones realizadas:} %d\n\n", resultado->iteraciones);
     
     if (resultado->mensaje) {
         g_string_append_printf(latex, "\\textbf{Observaciones:} %s\n\n", resultado->mensaje);
     }
 }
-
 void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info, 
                             const char *nombre_archivo, gboolean mostrar_tablas) {
     GString *latex = g_string_new("");
@@ -906,31 +880,34 @@ void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info,
         "\\newpage\n",
         info->nombre_problema ? info->nombre_problema : "Optimización");
     
-    // Generar todas las secciones
     generar_algoritmo_simplex_latex(latex);
     generar_problema_original_latex(latex, info);
     
-    // Tabla inicial 
     if (resultado->tablas_intermedias) {
         TablaSimplex *tabla_inicial = (TablaSimplex*)g_list_first(resultado->tablas_intermedias)->data;
         generar_tabla_inicial_latex(latex, tabla_inicial, info);
+    } else if (resultado->tabla_final) {
+        generar_tabla_inicial_latex(latex, resultado->tabla_final, info);
     }
-    
-    // Tablas intermedias 
+
     if (mostrar_tablas && resultado->tablas_intermedias) {
         generar_tablas_intermedias_latex(latex, resultado->tablas_intermedias, info, resultado);
     }
     
-    // Tabla final
     generar_tabla_final_latex(latex, resultado, info);
     
-    // Solución
-    generar_solucion_latex(latex, resultado, info);
+    if (resultado->tipo_solucion != NO_ACOTADO) {
+        generar_solucion_latex(latex, resultado, info);
+    } else {
+        g_string_append_printf(latex,
+            "\\section{Solución Óptima}\n"
+            "\n");
+        g_string_append(latex, "\\textbf{PROBLEMA NO ACOTADO}\n\n");
+        generar_explicacion_no_acotado_latex(latex);
+    }
     
-    // Finalizar documento
     g_string_append(latex, "\\end{document}\n");
     
-    // Guardar archivo
     FILE *archivo = fopen(nombre_archivo, "w");
     if (archivo) {
         fprintf(archivo, "%s", latex->str);
@@ -942,6 +919,7 @@ void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info,
     
     g_string_free(latex, TRUE);
 }
+
 
 void compilar_y_mostrar_pdf(const char *nombre_archivo_tex, const char *nombre_archivo_pdf) {
     char comando1[512];

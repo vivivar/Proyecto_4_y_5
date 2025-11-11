@@ -1,0 +1,201 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\definecolor{basecolor}{RGB}{0,128,0}
+\definecolor{entracolor}{RGB}{255,0,0}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{PanaderiaBreadCo}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre II: 2025
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\
+
+Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos (en la mayoría de los casos prácticos)
+\item \textbf{Complejidad:} En el peor caso tiene complejidad exponencial, pero en la práctica es muy eficiente
+\item \textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteración
+\end{itemize}
+
+\subsection{Descripción del Método}
+El método Simplex opera moviéndose entre vértices adyacentes del poliedro factible, mejorando el valor de la función objetivo en cada paso hasta alcanzar el óptimo.
+
+\section{Problema Original}
+
+\subsection{Formulación Matemática}
+\textbf{Problema de Maximización}
+
+\[ \text{Maximizar } Z = 36x_{1} + 30x_{2} -3x_{3} -4x_{4} \]
+
+\textbf{Sujeto a:}
+\begin{align*}
+1x_{1} + 1x_{2} -1x_{3} + 0x_{4} &\leq 5 \\
+6x_{1} + 5x_{2} + 0x_{3} -4x_{4} &\leq 10
+\end{align*}
+
+\textbf{Con:}
+\[ x_{1} \geq 0, \quad x_{2} \geq 0, \quad x_{3} \geq 0, \quad x_{4} \geq 0 \]
+
+\section{Tabla Inicial del Método Simplex}
+
+La tabla inicial del método Simplex se construye agregando variables de holgura para convertir las desigualdades en igualdades.
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & -36 & -30 & 3 & 4 & 0 & 0 & 0 \\
+\hline
+\textbf{$S_1$} & 0 & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\textbf{$S_2$} & 0 & 6 & 5 & 0 & -4 & 0 & 1 & 10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\item \textbf{$S_1$:} Coeficientes de las variables de holgura
+\item \textbf{$S_2$:} Coeficientes de las variables de holgura
+\item \textbf{b:} T\'erminos independientes (lado derecho)
+\item \textbf{Base inicial:} Variables de holgura $S_1, S_2, \ldots, S_2$
+\end{itemize}
+
+\section{Proceso Iterativo del Método Simplex}
+
+A continuación se detalla el proceso iterativo del algoritmo Simplex, mostrando cada tabla y las operaciones de pivoteo realizadas.
+
+\subsection{Tabla Inicial}
+\textbf{Estado inicial:} Variables de holgura en la base.\par\smallskip
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & \textcolor{red}{-36} & \textcolor{red}{-30} & 3 & 4 & 0 & 0 & 0 \\
+\hline
+\textbf{\textcolor{green}{$S_1$}} & 0 & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\textbf{\textcolor{green}{$S_2$}} & 0 & 6 & 5 & 0 & -4 & 0 & 1 & 10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Variables en la base:} \textcolor{green}{$S_1$}, \textcolor{green}{$S_2$}\\
+
+\subsection{Iteración 1}
+\textbf{Operación de pivoteo:}
+\begin{itemize}
+\item \textbf{Variable que entra:} $x_{1}$
+\item \textbf{Variable que sale:} $S_2$
+\item \textbf{Elemento pivote:} 6 (fila 2, columna 1)
+\end{itemize}
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & 0 & 0 & 3 & \textcolor{red}{-20} & 0 & 6 & 60 \\
+\hline
+\textbf{\textcolor{green}{$S_1$}} & 0 & 0 & 0.17 & -1 & 0.67 & 1 & -0.17 & 3.33 \\
+\hline
+\textbf{\textcolor{green}{$x_{1}$}} & 0 & \mathbf{[1]} & 0.83 & 0 & -0.67 & 0 & 0.17 & 1.67 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Variables en la base:} \textcolor{green}{$S_1$}, \textcolor{green}{$x_{1}$}\\
+
+\subsection{Iteración 2}
+\textbf{Operación de pivoteo:}
+\begin{itemize}
+\item \textbf{Variable que entra:} $x_{4}$
+\item \textbf{Variable que sale:} $S_1$
+\item \textbf{Elemento pivote:} 1 (fila 1, columna 4)
+\end{itemize}
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & 0 & 5 & \textcolor{red}{-27} & 0 & 30 & 1 & 160 \\
+\hline
+\textbf{\textcolor{green}{$x_{4}$}} & 0 & 0 & 0.25 & -1.50 & \mathbf{[1]} & 1.50 & -0.25 & 5 \\
+\hline
+\textbf{\textcolor{green}{$x_{1}$}} & 0 & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Variables en la base:} \textcolor{green}{$x_{4}$}, \textcolor{green}{$x_{1}$}\\
+
+\section{Tabla Final}
+
+\textbf{Error:} No se pudo generar la tabla final.
+
+\section{Solución Óptima}
+
+\textbf{PROBLEMA NO ACOTADO}
+
+\subsection{Explicación del Problema No Acotado}
+
+Un problema de programación lineal se considera \textbf{no acotado} cuando la función objetivo puede mejorar indefinidamente sin violar ninguna restricción.
+
+\textbf{Condiciones para no acotamiento:}
+\begin{itemize}
+\item Existe al menos una variable que puede aumentar indefinidamente
+\item Todos los coeficientes en la columna pivote son negativos o cero
+\item No hay restricciones que limiten el crecimiento de la variable
+\end{itemize}
+
+\textbf{Interpretación práctica:}
+\begin{itemize}
+\item En problemas de maximización: La ganancia puede ser infinita
+\item En problemas de minimización: El costo puede disminuir indefinidamente
+\item Suele indicar un error en la formulación del problema
+\item Puede significar que faltan restricciones importantes
+\end{itemize}
+
+\textbf{Solución:} Revisar la formulación del problema y verificar que todas las restricciones necesarias estén incluidas.
+
+\end{document}

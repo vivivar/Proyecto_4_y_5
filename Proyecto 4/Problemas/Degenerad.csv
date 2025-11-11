@@ -1,0 +1,9 @@
+NAME,Degenerad
+TYPE,MAX
+N,2
+VARS,X1,X2
+M,3
+Z,2,1
+R,3,1,<=,6
+R,1,-1,<=,2
+R,0,1,<=,3

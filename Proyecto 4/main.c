@@ -80,6 +80,8 @@ typedef struct {
     int n_artificial;
 } Tabla;
 
+static gchar *g_problems_dir = NULL;
+
 // -------------------------------------------
 // ----------------- Helpers -----------------
 // -------------------------------------------
@@ -188,6 +190,34 @@ static void free_tabla(Tabla *tab) {
         g_free(tab->A);
     }
     g_free(tab);
+}
+
+static gchar* filename_from_problem_name(const char *nombre, const char *ext) {
+    if (!nombre || !*nombre) nombre = "Problema";
+    GString *safe = g_string_new("");
+    for (const char *p = nombre; *p; ++p) {
+        if (g_ascii_isalnum(*p)) g_string_append_c(safe, *p);
+        else if (*p == ' ' || *p == '-' || *p == '_') g_string_append_c(safe, '_');
+        // otros chars se omiten
+    }
+    if (safe->len == 0) g_string_append(safe, "Problema");
+    gchar *out = g_strdup_printf("%s.%s", safe->str, ext ? ext : "csv");
+    g_string_free(safe, TRUE);
+    return out;
+}
+
+static gchar** split_and_trim(const gchar *linea, const gchar *sep, int *count_out) {
+    if (count_out) *count_out = 0;
+    if (!linea) return NULL;
+    gchar **parts = g_strsplit(linea, sep, -1);
+    if (!parts) return NULL;
+    // trim espacios por si acaso
+    for (int i = 0; parts[i]; ++i) {
+        gchar *t = g_strstrip(parts[i]);
+        (void)t;
+        if (count_out) (*count_out)++;
+    }
+    return parts;
 }
 
 // -------------------------------------------
@@ -438,6 +468,251 @@ void calcular_soluciones_adicionales(ResultadoSimplex *resultado, ProblemaInfo *
     g_free(sol2);
 }
 
+// Escribe el CSV en 'filepath'
+static gboolean setCSVPath(const char *filepath) {
+    if (!filepath) return FALSE;
+
+    int n = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinVariables));
+    int m = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinRestrictions));
+    if (n <= 0 || m < 0) return FALSE;
+
+    FILE *f = fopen(filepath, "w");
+    if (!f) return FALSE;
+
+    // NAME
+    const char *nombre = gtk_entry_get_text(GTK_ENTRY(nameEntry));
+    if (!nombre || !*nombre) nombre = "Problema";
+    fprintf(f, "NAME,%s\n", nombre);
+
+    // TYPE
+    fprintf(f, "TYPE,%s\n", (type && strcmp(type, "MIN")==0) ? "MIN" : "MAX");
+
+    // N y VARS
+    fprintf(f, "N,%d\n", n);
+    fprintf(f, "VARS");
+    for (int i = 0; i < n; ++i) {
+        GtkWidget *e = grid_at(gridVariables, 0, i);
+        const char *v = (e && GTK_IS_ENTRY(e)) ? gtk_entry_get_text(GTK_ENTRY(e)) : "X?";
+        fprintf(f, ",%s", v);
+    }
+    fprintf(f, "\n");
+
+    // M
+    fprintf(f, "M,%d\n", m);
+
+    // Z (detecta si hay label al inicio o no)
+    int z_base = 0;
+    GtkWidget *c00 = grid_at(ZGrid, 0, 0);
+    if (c00 && GTK_IS_LABEL(c00)) z_base = 1;
+    fprintf(f, "Z");
+    for (int i = 0; i < n; ++i) {
+        GtkWidget *coef_entry = grid_at(ZGrid, z_base + 3*i, 0);
+        double c = entry_to_double(coef_entry);
+        fprintf(f, ",%.17g", c);
+    }
+    fprintf(f, "\n");
+
+    // Restricciones
+    for (int r = 0; r < m; ++r) {
+        fprintf(f, "R");
+        for (int i = 0; i < n; ++i) {
+            GtkWidget *coef_entry = grid_at(gridRestrictions, 0 + 3*i, r);
+            double aij = entry_to_double(coef_entry);
+            fprintf(f, ",%.17g", aij);
+        }
+        GtkWidget *rel = grid_at(gridRestrictions, 3*n - 1, r);
+        int idx = combo_active_index(rel); // 0: ≤, 1: ≥, 2: =
+        const char *op = (idx==0) ? "<=" : (idx==1) ? ">=" : "=";
+
+        GtkWidget *rhs_entry = grid_at(gridRestrictions, 3*n, r);
+        double b = entry_to_double(rhs_entry);
+
+        fprintf(f, ",%s,%.17g\n", op, b);
+    }
+
+    fclose(f);
+    return TRUE;
+}
+
+// Guardar problema en .csv
+static gboolean saveToCsv(void) {
+    const char *nombre = gtk_entry_get_text(GTK_ENTRY(nameEntry));
+    gchar *fname = filename_from_problem_name(nombre, "csv");
+
+    if (!g_problems_dir) {
+        gchar *base_dir = g_get_current_dir();
+        g_problems_dir = g_build_filename(base_dir, "Problemas", NULL);
+        g_free(base_dir);
+    }
+    g_mkdir_with_parents(g_problems_dir, 0700);
+
+    gchar *filepath = g_build_filename(g_problems_dir, fname, NULL);
+
+    gboolean ok = setCSVPath(filepath);
+
+    if (!ok) {
+        GtkWidget *err = gtk_message_dialog_new(
+            GTK_WINDOW(window), GTK_DIALOG_MODAL,
+            GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "No se pudo guardar el archivo CSV:\n%s", filepath
+        );
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+    }
+
+    g_free(filepath);
+    g_free(fname);
+    return ok;
+}
+
+// Cargar problema a interfaz
+static gboolean loadFromCSV(const char *filepath) {
+    if (!filepath) return FALSE;
+
+    gchar *contents = NULL;
+    gsize len = 0;
+    if (!g_file_get_contents(filepath, &contents, &len, NULL)) return FALSE;
+
+    gchar **lines = g_strsplit(contents, "\n", -1);
+    if (!lines) { g_free(contents); return FALSE; }
+
+    GPtrArray *vars       = g_ptr_array_new_with_free_func(g_free);
+    GPtrArray *rest_filas = g_ptr_array_new_with_free_func(g_strfreev);
+    gchar *prob_name = NULL;
+    gchar *tipo_str  = NULL;
+    int n = -1, m = -1;
+    double *z = NULL;
+
+    for (int i = 0; lines[i]; ++i) {
+        gchar *line = g_strstrip(lines[i]);
+        if (!*line) continue;
+
+        int cnt = 0;
+        gchar **parts = split_and_trim(line, ",", &cnt);
+        if (!parts || cnt == 0) { if (parts) g_strfreev(parts); continue; }
+
+        if (g_strcmp0(parts[0], "NAME")==0 && cnt >= 2) {
+            g_free(prob_name);  
+            prob_name = g_strdup(parts[1]);
+        } else if (g_strcmp0(parts[0], "TYPE")==0 && cnt >= 2) {
+            g_free(tipo_str);
+            tipo_str = g_strdup(parts[1]);
+        } else if (g_strcmp0(parts[0], "N")==0 && cnt >= 2) {
+            n = atoi(parts[1]);
+        } else if (g_strcmp0(parts[0], "VARS")==0 && cnt >= 2) {
+            for (int k = 1; k < cnt; ++k) g_ptr_array_add(vars, g_strdup(parts[k]));
+        } else if (g_strcmp0(parts[0], "M")==0 && cnt >= 2) {
+            m = atoi(parts[1]);
+        } else if (g_strcmp0(parts[0], "Z")==0 && n > 0) {
+            g_free(z);
+            z = g_new0(double, n);
+            for (int k = 0; k < n && (k+1) < cnt; ++k) z[k] = g_ascii_strtod(parts[k+1], NULL);
+        } else if (g_strcmp0(parts[0], "R")==0) {
+            g_ptr_array_add(rest_filas, parts);
+            parts = NULL;
+        }
+
+        if (parts) g_strfreev(parts);
+    }
+
+    // Validación básica
+    gboolean ok = TRUE;
+    if (n <= 0 || m < 0 || (int)vars->len != n || !z) ok = FALSE;
+
+    if (!ok) {
+        g_free(z);
+        g_free(prob_name);
+        g_free(tipo_str);
+        g_ptr_array_free(rest_filas, TRUE); // libera cada R con g_strfreev
+        g_ptr_array_free(vars, TRUE);       // libera cada var con g_free
+        g_strfreev(lines);
+        g_free(contents);
+        return FALSE;
+    }
+
+    // Cargar a Interfaz
+    // Tipo
+    if (tipo_str && g_ascii_strcasecmp(tipo_str, "MIN")==0) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(rbMinimizar), TRUE);
+    } else {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(rbMaximizar), TRUE);
+    }
+
+    // Nombre
+    if (prob_name) gtk_entry_set_text(GTK_ENTRY(nameEntry), prob_name);
+
+    // Variables
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinVariables), n);
+    createVariables(GTK_SPIN_BUTTON(spinVariables), NULL);
+    for (int i = 0; i < n; ++i) {
+        GtkWidget *e = grid_at(gridVariables, 0, i);
+        const char *vname = g_ptr_array_index(vars, i);
+        if (e && GTK_IS_ENTRY(e) && vname) gtk_entry_set_text(GTK_ENTRY(e), vname);
+    }
+
+    // Restricciones
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinRestrictions), m);
+    createRestrictions();
+
+    // Z
+    createZ();
+    int z_base = 0;
+    GtkWidget *c00 = grid_at(ZGrid, 0, 0);
+    if (c00 && GTK_IS_LABEL(c00)) z_base = 1;
+    for (int i = 0; i < n; ++i) {
+        GtkWidget *coef_entry = grid_at(ZGrid, z_base + 3*i, 0);
+        if (coef_entry && GTK_IS_ENTRY(coef_entry)) {
+            gchar *txt = g_strdup_printf("%.17g", z[i]);
+            gtk_entry_set_text(GTK_ENTRY(coef_entry), txt);
+            g_free(txt);
+        }
+    }
+
+    // Filas R
+    int m_csv = MIN(m, (int)rest_filas->len);
+    for (int r = 0; r < m_csv; ++r) {
+        gchar **R = g_ptr_array_index(rest_filas, r); 
+        if (!R) continue;
+
+        int cntR = 0; while (R[cntR]) cntR++;
+        if (cntR < (2 + n)) continue;
+
+        for (int i = 0; i < n; ++i) {
+            GtkWidget *coef_entry = grid_at(gridRestrictions, 0 + 3*i, r);
+            double aij = g_ascii_strtod(R[1+i], NULL);
+            if (coef_entry && GTK_IS_ENTRY(coef_entry)) {
+                gchar *txt = g_strdup_printf("%.17g", aij);
+                gtk_entry_set_text(GTK_ENTRY(coef_entry), txt);
+                g_free(txt);
+            }
+        }
+
+        const char *op   = R[1+n];
+        const char *btxt = (cntR >= 3+n) ? R[2+n] : "0";
+
+        int idx = 0;
+        if (op && strcmp(op, ">=")==0) idx = 1;
+        else if (op && strcmp(op, "=")==0) idx = 2;
+
+        GtkWidget *rel = grid_at(gridRestrictions, 3*n - 1, r);
+        if (rel && GTK_IS_COMBO_BOX(rel)) gtk_combo_box_set_active(GTK_COMBO_BOX(rel), idx);
+
+        GtkWidget *rhs_entry = grid_at(gridRestrictions, 3*n, r);
+        if (rhs_entry && GTK_IS_ENTRY(rhs_entry))
+            gtk_entry_set_text(GTK_ENTRY(rhs_entry), btxt ? btxt : "0");
+    }
+
+    g_free(z);
+    g_free(prob_name);
+    g_free(tipo_str);
+    g_ptr_array_free(rest_filas, TRUE);
+    g_ptr_array_free(vars, TRUE);
+    g_strfreev(lines);
+    g_free(contents);
+
+    return TRUE;
+}
+
 // -------------------------------------------
 // ----------------- BOTONES -----------------
 // -------------------------------------------
@@ -477,11 +752,15 @@ static void on_showTablesCheck_button_toggled(GtkToggleButton *button, gpointer 
     }
 }
 
-void on_loadFileButton_clicked(GtkWidget *widget, gpointer data) {
-    g_print("Cargar archivo presionado\n");
+void on_loadFileButton_file_set(GtkWidget *widget, gpointer data) {
+    char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(widget));
+    gtk_widget_set_sensitive(loadButton, filename != NULL);
+    if (filename) g_free(filename);
 }
 
 void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
+
+    saveToCsv();
     int n = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinVariables));
     int m = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinRestrictions));
     
@@ -602,12 +881,74 @@ void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
 }
 
 void on_saveButton_clicked(GtkWidget *widget, gpointer data) {
-    // Por implementar
+    GtkWidget *dialog = gtk_file_chooser_dialog_new(
+        "Guardar problema como CSV",
+        GTK_WINDOW(window),
+        GTK_FILE_CHOOSER_ACTION_SAVE,
+        "_Cancelar", GTK_RESPONSE_CANCEL,
+        "_Guardar", GTK_RESPONSE_ACCEPT,
+        NULL);
+
+    // nombre sugerido
+    const char *nombre = gtk_entry_get_text(GTK_ENTRY(nameEntry));
+    gchar *sugerido = filename_from_problem_name(nombre, "csv");
+    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), sugerido);
+    g_free(sugerido);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        gchar *with_ext = NULL;
+        if (g_str_has_suffix(filename, ".csv")) with_ext = g_strdup(filename);
+        else with_ext = g_strdup_printf("%s.csv", filename);
+
+        if (!setCSVPath(with_ext)) {
+            GtkWidget *err = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL,
+                                                    GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                                    "No se pudo guardar el archivo CSV.");
+            gtk_dialog_run(GTK_DIALOG(err));
+            gtk_widget_destroy(err);
+        }
+        g_free(with_ext);
+        g_free(filename);
+    }
+    gtk_widget_destroy(dialog);
 }
 
 void on_loadButton_clicked(GtkWidget *widget, gpointer data) {
+    if (!GTK_IS_FILE_CHOOSER(loadFileButton)) {
+        GtkWidget *err = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL,
+                                                GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                                "El widget 'loadFileButton' no es un FileChooser.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        return;
+    }
+
+    char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(loadFileButton));
+    if (!filename) {
+        GtkWidget *warn = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL,
+                                                 GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
+                                                 "Seleccione un archivo CSV primero.");
+        gtk_dialog_run(GTK_DIALOG(warn));
+        gtk_widget_destroy(warn);
+        return;
+    }
+
+    gboolean ok = loadFromCSV(filename);
+    g_free(filename);
+
+    if (!ok) {
+        GtkWidget *err = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL,
+                                                GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                                "No se pudo cargar el archivo CSV.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        return;
+    }
+
     gtk_widget_set_sensitive(solveButton, TRUE);
 }
+
 
 void on_exitButton_clicked (GtkButton *exitButton, gpointer data){
     gtk_main_quit();
@@ -624,6 +965,11 @@ int main (int argc, char *argv[]){
     srand(time(NULL));
     
     gtk_init(&argc, &argv);
+
+    gchar *base_dir = g_get_current_dir();                  
+    g_problems_dir = g_build_filename(base_dir, "Problemas", NULL);
+    g_mkdir_with_parents(g_problems_dir, 0700);
+    g_free(base_dir);
     
     builder =  gtk_builder_new_from_file ("Simplex.glade");
     
@@ -674,10 +1020,11 @@ int main (int argc, char *argv[]){
     set_css(cssProvider, exitButton);
 
     gtk_widget_set_sensitive(solveButton, FALSE);
+    gtk_widget_set_sensitive(loadButton, FALSE);
 
     g_signal_connect(exitButton, "clicked", G_CALLBACK(on_exitButton_clicked), NULL);
     g_signal_connect(continueButton, "clicked", G_CALLBACK(on_continueButton_clicked), NULL);
-    g_signal_connect(loadFileButton, "clicked", G_CALLBACK(on_loadFileButton_clicked), NULL);
+    g_signal_connect(loadFileButton, "file-set", G_CALLBACK(on_loadFileButton_file_set), NULL);
     g_signal_connect(solveButton, "clicked", G_CALLBACK(on_solveButton_clicked), NULL);
     g_signal_connect(exitButton, "clicked", G_CALLBACK(on_exitButton_clicked), NULL);
     g_signal_connect(saveButton, "clicked", G_CALLBACK(on_saveButton_clicked), NULL);

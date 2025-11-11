@@ -1,0 +1,8 @@
+NAME,cinturoness
+TYPE,MAX
+N,2
+VARS,X1,X2
+M,2
+Z,3,4
+R,1,1,<=,40
+R,1,2,<=,60

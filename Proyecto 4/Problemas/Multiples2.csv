@@ -1,0 +1,8 @@
+NAME,Multiples2
+TYPE,MAX
+N,2
+VARS,X1,X2
+M,2
+Z,4,14
+R,2,7,<=,21
+R,7,2,<=,21

@@ -16,7 +16,6 @@ void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, Prob
 void generar_explicacion_soluciones_multiples_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info);
 void generar_explicacion_no_acotado_latex(GString *latex);
 void generar_explicacion_degenerado_latex(GString *latex, ResultadoSimplex *resultado);
-void generar_explicacion_minimizacion_latex(GString *latex);
 void generar_soluciones_adicionales_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info);
 void generar_solucion_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info);
 void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info, 
