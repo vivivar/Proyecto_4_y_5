@@ -1,0 +1,153 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\definecolor{basecolor}{RGB}{0,128,0}
+\definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{entracolor}{RGB}{0,0,255}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{EjemploDecimales}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre II: 2025
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\
+
+Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos (en la mayoría de los casos prácticos)
+\item \textbf{Complejidad:} En el peor caso tiene complejidad exponencial, pero en la práctica es muy eficiente
+\item \textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteración
+\end{itemize}
+
+\subsection{Descripción del Método}
+El método Simplex opera moviéndose entre vértices adyacentes del poliedro factible, mejorando el valor de la función objetivo en cada paso hasta alcanzar el óptimo.
+
+\section{Problema Original}
+
+\subsection{Formulación Matemática}
+\textbf{Problema de Maximización}
+
+\[ \text{Maximizar } Z = 60x_{1} + 35x_{2} + 20x_{3} \]
+
+\textbf{Sujeto a:}
+\begin{align*}
+8x_{1} + 6x_{2} + 1x_{3} &\leq 48 \\
+4x_{1} + 2x_{2} + 1.60x_{3} &\leq 20 \\
+2x_{1} + 1x_{2} + 5x_{3} &\leq 15 \\
+0x_{1} + 1x_{2} + 0.50x_{3} &\leq 30
+\end{align*}
+
+\textbf{Con:}
+\[ x_{1} \geq 0, \quad x_{2} \geq 0, \quad x_{3} \geq 0 \]
+
+\section{Tabla Inicial del Método Simplex}
+
+La tabla inicial del método Simplex se construye agregando variables de holgura para convertir las desigualdades en igualdades.
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{$S_3$} & \textbf{$S_4$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & 0 & 0 & 0 & 2.50 & 9.82 & 0.36 & 0 & 321.79 \\
+\hline
+\textbf{$S_1$} & 0 & 0 & 1 & 0 & 1 & 0 & 0 & 0 & 5.31 \\
+\hline
+\textbf{$S_2$} & 0 & 1 & 0 & 0 & 0 & 1 & 0 & 0 & 1.87 \\
+\hline
+\textbf{$S_3$} & 0 & 0 & 0 & 1 & 0 & 0 & 1 & 0 & 1.19 \\
+\hline
+\textbf{$S_4$} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 24.10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\item \textbf{$S_1$:} Coeficientes de las variables de holgura
+\item \textbf{$S_2$:} Coeficientes de las variables de holgura
+\item \textbf{$S_3$:} Coeficientes de las variables de holgura
+\item \textbf{$S_4$:} Coeficientes de las variables de holgura
+\item \textbf{b:} T\'erminos independientes (lado derecho)
+\item \textbf{Base inicial:} Variables de holgura $S_1, S_2, \ldots, S_4$
+\end{itemize}
+
+\section{Tabla Final}
+
+La siguiente tabla representa la solución óptima del problema:
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{$s_3$} & \textbf{$s_4$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & 0 & 0 & 0 & 2.50 & 9.82 & 0.36 & 0 & 321.79 \\
+\hline
+\textbf{$x_{2}$} & 0 & 1 & 0 & 0.50 & -1.13 & 0.26 & 0 & 5.31 \\
+\hline
+\textbf{$x_{1}$} & 1 & 0 & 0 & -0.25 & 0.86 & -0.23 & 0 & 1.87 \\
+\hline
+\textbf{$x_{3}$} & 0 & 0 & 1 & 0 & -0.12 & 0.24 & 0 & 1.19 \\
+\hline
+\textbf{$s_4$} & 0 & 0 & 0 & -0.50 & 1.19 & -0.38 & 1 & 24.10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Solución Óptima}
+
+\textbf{Valor óptimo de la función objetivo: } $Z = 321.79$
+
+\textbf{Valores de las variables:}
+\begin{align*}
+x_{1} &= 1.87 \\
+x_{2} &= 5.31 \\
+x_{3} &= 1.19 \\
+S_4 &= 24.10 \\
+S_1 &= 0 \\
+S_2 &= 0 \\
+S_3 &= 0
+\end{align*}
+
+\textbf{Tipo:} Solución Única
+
+El problema tiene una única solución óptima en el punto encontrado.
+
+\textbf{Iteraciones realizadas:} 3
+
+\end{document}

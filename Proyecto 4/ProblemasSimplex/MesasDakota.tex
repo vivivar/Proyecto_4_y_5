@@ -16,6 +16,9 @@
 
 \definecolor{basecolor}{RGB}{0,128,0}
 \definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{entracolor}{RGB}{0,0,255}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
 
 \title{Resultados del Método Simplex\\
 \large Problema: \textbf{MesasDakota}}
@@ -95,9 +98,6 @@ La tabla inicial del método Simplex se construye agregando variables de holgura
 \end{tabular}
 \end{center}
 
-\item \textbf{x_{1}:} Coeficientes de las variables de decisi\'on
-\item \textbf{x_{2}:} Coeficientes de las variables de decisi\'on
-\item \textbf{x_{3}:} Coeficientes de las variables de decisi\'on
 \item \textbf{$S_1$:} Coeficientes de las variables de holgura
 \item \textbf{$S_2$:} Coeficientes de las variables de holgura
 \item \textbf{$S_3$:} Coeficientes de las variables de holgura
@@ -139,7 +139,7 @@ A continuación se detalla el proceso iterativo del algoritmo Simplex, mostrando
 \begin{itemize}
 \item \textbf{Variable que entra:} $x_{1}$
 \item \textbf{Variable que sale:} $S_3$
-\item \textbf{Elemento pivote:} 2 (fila 3, columna 1)
+\item \textbf{Elemento pivote:} 2.0000 (fila 3, columna 1)
 \end{itemize}
 
 \begin{center}
@@ -168,7 +168,7 @@ A continuación se detalla el proceso iterativo del algoritmo Simplex, mostrando
 \begin{itemize}
 \item \textbf{Variable que entra:} $x_{3}$
 \item \textbf{Variable que sale:} $S_2$
-\item \textbf{Elemento pivote:} 0 (fila 2, columna 3)
+\item \textbf{Elemento pivote:} 0.5000 (fila 2, columna 3)
 \end{itemize}
 
 \begin{center}

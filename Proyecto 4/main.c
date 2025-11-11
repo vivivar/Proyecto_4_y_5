@@ -65,6 +65,8 @@ GtkCssProvider *cssProvider;
 
 // ---- Variables Globales ----
 
+#define BUFNUM G_ASCII_DTOSTR_BUF_SIZE
+
 const char *type = "MAX";
 gboolean showTables = FALSE;
 void compilar_y_mostrar_pdf(const char *nombre_archivo_tex, const char *nombre_archivo_pdf);
@@ -159,7 +161,7 @@ static double entry_to_double(GtkWidget *w) {
         const char *t = gtk_entry_get_text(GTK_ENTRY(w));
         if (!t) return 0.0;
         char *endptr = NULL;
-        return g_strtod(t, &endptr);
+        return g_ascii_strtod(t, &endptr);   // <-- antes: g_strtod
     }
 
     if (GTK_IS_SPIN_BUTTON(w)) {
@@ -342,7 +344,7 @@ static void createRestrictions (void) {
         g_signal_connect(rhs, "focus-out-event", G_CALLBACK(normalizeValue), NULL);
         gtk_grid_attach(GTK_GRID(gridRestrictions), rhs, col++, r, 1, 1);
         
-        g_print("Restricción %d creada - Lado derecho en columna: %d\n", r+1, col-1);
+        //g_print("Restricción %d creada - Lado derecho en columna: %d\n", r+1, col-1);
     }
 
     gtk_widget_show_all(gridRestrictions);
@@ -471,6 +473,7 @@ void calcular_soluciones_adicionales(ResultadoSimplex *resultado, ProblemaInfo *
 // Escribe el CSV en 'filepath'
 static gboolean setCSVPath(const char *filepath) {
     if (!filepath) return FALSE;
+    char buf[BUFNUM];
 
     int n = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinVariables));
     int m = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinRestrictions));
@@ -501,14 +504,12 @@ static gboolean setCSVPath(const char *filepath) {
     fprintf(f, "M,%d\n", m);
 
     // Z (detecta si hay label al inicio o no)
-    int z_base = 0;
-    GtkWidget *c00 = grid_at(ZGrid, 0, 0);
-    if (c00 && GTK_IS_LABEL(c00)) z_base = 1;
     fprintf(f, "Z");
     for (int i = 0; i < n; ++i) {
         GtkWidget *coef_entry = grid_at(ZGrid, z_base + 3*i, 0);
         double c = entry_to_double(coef_entry);
-        fprintf(f, ",%.17g", c);
+        g_ascii_formatd(buf, sizeof(buf), "%.17g", c);
+        fprintf(f, ",%s", buf);
     }
     fprintf(f, "\n");
 
@@ -518,7 +519,8 @@ static gboolean setCSVPath(const char *filepath) {
         for (int i = 0; i < n; ++i) {
             GtkWidget *coef_entry = grid_at(gridRestrictions, 0 + 3*i, r);
             double aij = entry_to_double(coef_entry);
-            fprintf(f, ",%.17g", aij);
+            g_ascii_formatd(buf, sizeof(buf), "%.17g", aij);
+            fprintf(f, ",%s", buf);
         }
         GtkWidget *rel = grid_at(gridRestrictions, 3*n - 1, r);
         int idx = combo_active_index(rel); // 0: ≤, 1: ≥, 2: =
@@ -526,10 +528,9 @@ static gboolean setCSVPath(const char *filepath) {
 
         GtkWidget *rhs_entry = grid_at(gridRestrictions, 3*n, r);
         double b = entry_to_double(rhs_entry);
-
-        fprintf(f, ",%s,%.17g\n", op, b);
+        g_ascii_formatd(buf, sizeof(buf), "%.17g", b);
+        fprintf(f, ",%s,%s\n", op, buf);
     }
-
     fclose(f);
     return TRUE;
 }
@@ -659,31 +660,30 @@ static gboolean loadFromCSV(const char *filepath) {
     int z_base = 0;
     GtkWidget *c00 = grid_at(ZGrid, 0, 0);
     if (c00 && GTK_IS_LABEL(c00)) z_base = 1;
+
+    char buf[BUFNUM];
     for (int i = 0; i < n; ++i) {
         GtkWidget *coef_entry = grid_at(ZGrid, z_base + 3*i, 0);
         if (coef_entry && GTK_IS_ENTRY(coef_entry)) {
-            gchar *txt = g_strdup_printf("%.17g", z[i]);
-            gtk_entry_set_text(GTK_ENTRY(coef_entry), txt);
-            g_free(txt);
+            g_ascii_formatd(buf, sizeof(buf), "%.17g", z[i]);
+            gtk_entry_set_text(GTK_ENTRY(coef_entry), buf);
         }
     }
 
     // Filas R
     int m_csv = MIN(m, (int)rest_filas->len);
     for (int r = 0; r < m_csv; ++r) {
-        gchar **R = g_ptr_array_index(rest_filas, r); 
+        gchar **R = g_ptr_array_index(rest_filas, r);
         if (!R) continue;
-
         int cntR = 0; while (R[cntR]) cntR++;
-        if (cntR < (2 + n)) continue;
 
+        // coeficientes
         for (int i = 0; i < n; ++i) {
             GtkWidget *coef_entry = grid_at(gridRestrictions, 0 + 3*i, r);
             double aij = g_ascii_strtod(R[1+i], NULL);
             if (coef_entry && GTK_IS_ENTRY(coef_entry)) {
-                gchar *txt = g_strdup_printf("%.17g", aij);
-                gtk_entry_set_text(GTK_ENTRY(coef_entry), txt);
-                g_free(txt);
+                g_ascii_formatd(buf, sizeof(buf), "%.17g", aij);
+                gtk_entry_set_text(GTK_ENTRY(coef_entry), buf);
             }
         }
 
@@ -698,8 +698,11 @@ static gboolean loadFromCSV(const char *filepath) {
         if (rel && GTK_IS_COMBO_BOX(rel)) gtk_combo_box_set_active(GTK_COMBO_BOX(rel), idx);
 
         GtkWidget *rhs_entry = grid_at(gridRestrictions, 3*n, r);
-        if (rhs_entry && GTK_IS_ENTRY(rhs_entry))
-            gtk_entry_set_text(GTK_ENTRY(rhs_entry), btxt ? btxt : "0");
+        if (rhs_entry && GTK_IS_ENTRY(rhs_entry)) {
+            double bval = g_ascii_strtod(btxt, NULL);
+            g_ascii_formatd(buf, sizeof(buf), "%.17g", bval);
+            gtk_entry_set_text(GTK_ENTRY(rhs_entry), buf);
+        }
     }
 
     g_free(z);
