@@ -11,5 +11,5 @@
 \contentsline {subsection}{\numberline {4.2}Iteración 1}{4}{}%
 \contentsline {subsection}{\numberline {4.3}Iteración 2}{5}{}%
 \contentsline {section}{\numberline {5}Tabla Final}{5}{}%
-\contentsline {section}{\numberline {6}Solución Óptima}{5}{}%
+\contentsline {section}{\numberline {6}Solución Óptima}{6}{}%
 \contentsline {subsection}{\numberline {6.1}Explicación del Problema Degenerado}{6}{}%

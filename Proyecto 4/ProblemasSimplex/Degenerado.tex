@@ -16,6 +16,9 @@
 
 \definecolor{basecolor}{RGB}{0,128,0}
 \definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{entracolor}{RGB}{0,0,255}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
 
 \title{Resultados del Método Simplex\\
 \large Problema: \textbf{Degenerado}}
@@ -130,7 +133,10 @@ A continuación se detalla el proceso iterativo del algoritmo Simplex, mostrando
 \begin{itemize}
 \item \textbf{Variable que entra:} $x_{1}$
 \item \textbf{Variable que sale:} $S_1$
-\item \textbf{Elemento pivote:} 3 (fila 1, columna 1)
+\item \textbf{Elemento pivote:} 3,0000 (fila 1, columna 1)
+\item \textcolor{blue}{\textbf{Empate detectado:}} 2 filas con ratio mínimo\\
+\quad \textcolor{blue}{Filas empatadas:} 1, 2\\
+\quad \textcolor{blue}{Selección:} Fila 1 (aleatoria)
 \end{itemize}
 
 \begin{center}
@@ -141,23 +147,25 @@ A continuación se detalla el proceso iterativo del algoritmo Simplex, mostrando
 \hline
 \textbf{Z} & 1 & 0 & \textcolor{red}{-0.33} & 0.67 & 0 & 0 & 4 \\
 \hline
-\textbf{\textcolor{green}{$x_{1}$}} & 0 & \mathbf{[1]} & 0.33 & 0.33 & 0 & 0 & 2 \\
+\textcolor{blue}{\textbf{$x_{1}$}} & 0 & \mathbf{[1]} & \textcolor{blue}{0.33} & \textcolor{blue}{0.33} & \textcolor{blue}{0} & \textcolor{blue}{0} & \textcolor{blue}{2} \\
 \hline
-\textbf{\textcolor{green}{$S_2$}} & 0 & 0 & -1.33 & -0.33 & 1 & 0 & 0 \\
+\textcolor{blue}{\textbf{$S_2$}} & 0 & \textcolor{blue}{0} & \textcolor{blue}{-1.33} & \textcolor{blue}{-0.33} & \textcolor{blue}{1} & \textcolor{blue}{0} & \textcolor{blue}{0} \\
 \hline
 \textbf{\textcolor{green}{$S_3$}} & 0 & 0 & 1 & 0 & 0 & 1 & 3 \\
 \hline
 \end{tabular}
 \end{center}
 
-\textbf{Variables en la base:} \textcolor{green}{$x_{1}$}, \textcolor{green}{$S_2$}, \textcolor{green}{$S_3$}\\
+\noindent\textcolor{blue}{$\blacksquare$}\hspace{0.5em}\textbf{Filas en azul:} empates en la selección del pivote\\
+
+\textbf{Variables en la base:} \textcolor{blue}{$x_{1}$}, \textcolor{blue}{$S_2$}, \textcolor{green}{$S_3$}\\
 
 \subsection{Iteración 2}
 \textbf{Operación de pivoteo:}
 \begin{itemize}
 \item \textbf{Variable que entra:} $x_{2}$
 \item \textbf{Variable que sale:} $S_3$
-\item \textbf{Elemento pivote:} 1 (fila 3, columna 2)
+\item \textbf{Elemento pivote:} 1,0000 (fila 3, columna 2)
 \end{itemize}
 
 \begin{center}

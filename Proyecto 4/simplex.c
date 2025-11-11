@@ -116,14 +116,16 @@ int encontrar_columna_pivote(TablaSimplex *tabla) {
     return col_pivote;
 }
 
-int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote) {
+int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote, int **filas_empatadas, int *num_empates) {
     if (col_pivote == -1) return -1;
     
     int fila_pivote = -1;
     double min_ratio = 1e9;
     int empates[tabla->num_rest]; 
-    int num_empates = 0;
+    *num_empates = 0;
     bool hubo_empate = false;
+    
+    if (filas_empatadas) *filas_empatadas = NULL;
     
     for (int i = 1; i <= tabla->num_rest; i++) {
         if (tabla->tabla[i][col_pivote] > EPSILON) {
@@ -132,22 +134,30 @@ int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote) {
             
             if (ratio >= 0) {
                 if (fabs(ratio - min_ratio) < EPSILON) {
-                    empates[num_empates++] = i - 1;
+                    empates[*num_empates] = i - 1;
+                    (*num_empates)++;
                     hubo_empate = true;
                 } else if (ratio < min_ratio - EPSILON || fila_pivote == -1) {
                     min_ratio = ratio;
                     fila_pivote = i - 1;
-                    num_empates = 0; 
-                    empates[num_empates++] = i - 1;
+                    *num_empates = 1; 
+                    empates[0] = i - 1;
                     hubo_empate = false;
                 }
             }
         }
     }
     
-    if (num_empates > 1) {
-        int indice_aleatorio = rand() % num_empates;
+    if (*num_empates > 1) {
+        int indice_aleatorio = rand() % (*num_empates);
         fila_pivote = empates[indice_aleatorio];
+        
+        if (filas_empatadas) {
+            *filas_empatadas = g_new(int, *num_empates);
+            for (int i = 0; i < *num_empates; i++) {
+                (*filas_empatadas)[i] = empates[i];
+            }
+        }
     }
     
     return fila_pivote;
@@ -363,7 +373,9 @@ ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostra
             return resultado;
         }
         
-        int fila_pivote = encontrar_fila_pivote(tabla_trabajo, col_pivote);
+        int *filas_empatadas = NULL;
+        int num_empates = 0;
+        int fila_pivote = encontrar_fila_pivote(tabla_trabajo, col_pivote, &filas_empatadas, &num_empates);
         g_string_append_printf(resultado->proceso, "Fila pivote: %d\n", fila_pivote);
         
         if (fila_pivote == -1) {
@@ -395,8 +407,22 @@ ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostra
         } else {
             op->elemento_pivote = 0.0;
         }
-
+        
+        op->hubo_empate = (num_empates > 1);
+        op->num_empates = num_empates;
+        op->filas_empatadas = filas_empatadas;  
+        
         resultado->operaciones_pivoteo = g_list_append(resultado->operaciones_pivoteo, op);
+        
+        if (num_empates > 1) {
+            g_string_append_printf(resultado->proceso, "EMPATE DETECTADO: %d filas con ratio mínimo\n", num_empates);
+            g_string_append_printf(resultado->proceso, "Filas empatadas: ");
+            for (int i = 0; i < num_empates; i++) {
+                g_string_append_printf(resultado->proceso, "%d ", filas_empatadas[i] + 1);
+            }
+            g_string_append_printf(resultado->proceso, "\n");
+            g_string_append_printf(resultado->proceso, "Seleccionada aleatoriamente: fila %d\n", fila_pivote + 1);
+        }
         
         g_string_append_printf(resultado->proceso, "Pivoteando en (%d, %d)\n", fila_pivote + 1, col_pivote);
         pivotear(tabla_trabajo, fila_pivote, col_pivote);
@@ -592,6 +618,22 @@ void liberar_resultado(ResultadoSimplex *resultado) {
     if (resultado->columnas_pivote) {
         g_free(resultado->columnas_pivote);
         resultado->columnas_pivote = NULL;
+    }
+
+    if (resultado->operaciones_pivoteo) {
+        GList *iter = resultado->operaciones_pivoteo;
+        while (iter) {
+            if (iter->data) {
+                OperacionPivoteo *op = (OperacionPivoteo*)iter->data;
+                if (op->filas_empatadas) {
+                    g_free(op->filas_empatadas);
+                }
+                g_free(iter->data);
+            }
+            iter = g_list_next(iter);
+        }
+        g_list_free(resultado->operaciones_pivoteo);
+        resultado->operaciones_pivoteo = NULL;
     }
     
     g_free(resultado);

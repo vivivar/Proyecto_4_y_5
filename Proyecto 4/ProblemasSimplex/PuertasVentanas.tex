@@ -16,6 +16,9 @@
 
 \definecolor{basecolor}{RGB}{0,128,0}
 \definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{entracolor}{RGB}{0,0,255}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
 
 \title{Resultados del Método Simplex\\
 \large Problema: \textbf{PuertasVentanas}}
@@ -81,13 +84,13 @@ La tabla inicial del método Simplex se construye agregando variables de holgura
 \hline
 \textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{$S_3$} & \textbf{b} \\
 \hline
-\textbf{Z} & 1 & 0 & 0 & 0 & 1.50 & 1 & 36 \\
+\textbf{Z} & 1 & -3 & -5 & 0 & 0 & 0 & 0 \\
 \hline
-\textbf{$S_1$} & 0 & 0 & 0 & 1 & 0 & 0 & 2 \\
+\textbf{$S_1$} & 0 & 1 & 0 & 1 & 0 & 0 & 4 \\
 \hline
-\textbf{$S_2$} & 0 & 0 & 1 & 0 & 1 & 0 & 6 \\
+\textbf{$S_2$} & 0 & 0 & 2 & 0 & 1 & 0 & 12 \\
 \hline
-\textbf{$S_3$} & 0 & 1 & 0 & 0 & 0 & 1 & 2 \\
+\textbf{$S_3$} & 0 & 3 & 2 & 0 & 0 & 1 & 18 \\
 \hline
 \end{tabular}
 \end{center}
@@ -98,6 +101,86 @@ La tabla inicial del método Simplex se construye agregando variables de holgura
 \item \textbf{b:} T\'erminos independientes (lado derecho)
 \item \textbf{Base inicial:} Variables de holgura $S_1, S_2, \ldots, S_3$
 \end{itemize}
+
+\section{Proceso Iterativo del Método Simplex}
+
+A continuación se detalla el proceso iterativo del algoritmo Simplex, mostrando cada tabla y las operaciones de pivoteo realizadas.
+
+\subsection{Tabla Inicial}
+\textbf{Estado inicial:} Variables de holgura en la base.\par\smallskip
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{$S_3$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & \textcolor{red}{-3} & \textcolor{red}{-5} & 0 & 0 & 0 & 0 \\
+\hline
+\textbf{\textcolor{green}{$S_1$}} & 0 & 1 & 0 & 1 & 0 & 0 & 4 \\
+\hline
+\textbf{\textcolor{green}{$S_2$}} & 0 & 0 & 2 & 0 & 1 & 0 & 12 \\
+\hline
+\textbf{\textcolor{green}{$S_3$}} & 0 & 3 & 2 & 0 & 0 & 1 & 18 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Variables en la base:} \textcolor{green}{$S_1$}, \textcolor{green}{$S_2$}, \textcolor{green}{$S_3$}\\
+
+\subsection{Iteración 1}
+\textbf{Operación de pivoteo:}
+\begin{itemize}
+\item \textbf{Variable que entra:} $x_{2}$
+\item \textbf{Variable que sale:} $S_2$
+\item \textbf{Elemento pivote:} 2,0000 (fila 2, columna 2)
+\end{itemize}
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{$S_3$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & \textcolor{red}{-3} & 0 & 0 & 2.50 & 0 & 30 \\
+\hline
+\textbf{\textcolor{green}{$S_1$}} & 0 & 1 & 0 & 1 & 0 & 0 & 4 \\
+\hline
+\textbf{\textcolor{green}{$x_{2}$}} & 0 & 0 & \mathbf{[1]} & 0 & 0.50 & 0 & 6 \\
+\hline
+\textbf{\textcolor{green}{$S_3$}} & 0 & 3 & 0 & 0 & -1 & 1 & 6 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Variables en la base:} \textcolor{green}{$S_1$}, \textcolor{green}{$x_{2}$}, \textcolor{green}{$S_3$}\\
+
+\subsection{Iteración 2}
+\textbf{Operación de pivoteo:}
+\begin{itemize}
+\item \textbf{Variable que entra:} $x_{1}$
+\item \textbf{Variable que sale:} $S_3$
+\item \textbf{Elemento pivote:} 3,0000 (fila 3, columna 1)
+\end{itemize}
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{$S_3$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & 0 & 0 & 0 & 1.50 & 1 & 36 \\
+\hline
+\textbf{\textcolor{green}{$S_1$}} & 0 & 0 & 0 & 1 & 0.33 & -0.33 & 2 \\
+\hline
+\textbf{\textcolor{green}{$x_{2}$}} & 0 & 0 & 1 & 0 & 0.50 & 0 & 6 \\
+\hline
+\textbf{\textcolor{green}{$x_{1}$}} & 0 & \mathbf{[1]} & 0 & 0 & -0.33 & 0.33 & 2 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Variables en la base:} \textcolor{green}{$S_1$}, \textcolor{green}{$x_{2}$}, \textcolor{green}{$x_{1}$}\\
 
 \section{Tabla Final}
 

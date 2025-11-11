@@ -34,11 +34,14 @@ typedef struct {
 
 typedef struct {
     int iteracion;
+    int columna_pivote;
+    int fila_pivote;
     int variable_entra;
     int variable_sale;
-    int fila_pivote;
-    int columna_pivote;
     double elemento_pivote;
+    gboolean hubo_empate;  
+    int num_empates;       
+    int *filas_empatadas;  
 } OperacionPivoteo;
 
 typedef struct {
@@ -85,7 +88,7 @@ TablaSimplex* copiar_tabla_simplex(const TablaSimplex *original);
 void extraer_solucion(TablaSimplex *tabla, double solucion[]);
 bool es_optima(TablaSimplex *tabla);
 int encontrar_columna_pivote(TablaSimplex *tabla);
-int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote);
+int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote, int **filas_empatadas, int *num_empates);
 void pivotear(TablaSimplex *tabla, int fila_pivote, int col_pivote);
 bool es_no_acotado(TablaSimplex *tabla, int col_pivote);
 bool es_solucion_multiple(TablaSimplex *tabla);

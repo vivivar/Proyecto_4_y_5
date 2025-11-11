@@ -345,8 +345,22 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
                 }
                 
                 g_string_append_printf(latex,
-                "\\item \\textbf{Elemento pivote:} %.0f (fila %d, columna %d)\n",
+                "\\item \\textbf{Elemento pivote:} %.4f (fila %d, columna %d)\n",
                 op->elemento_pivote, op->fila_pivote + 1, op->columna_pivote + 1);
+
+                // Mostrar información de empates de manera más limpia
+                if (op->hubo_empate) {
+                    g_string_append_printf(latex, "\\item \\textcolor{blue}{\\textbf{Empate detectado:}} %d filas con ratio mínimo\\\\\n", op->num_empates);
+                    g_string_append_printf(latex, "\\quad \\textcolor{blue}{Filas empatadas:} ");
+                    for (int i = 0; i < op->num_empates; i++) {
+                        g_string_append_printf(latex, "%d", op->filas_empatadas[i] + 1);
+                        if (i < op->num_empates - 1) {
+                            g_string_append_printf(latex, ", ");
+                        }
+                    }
+                    g_string_append_printf(latex, "\\\\\n");
+                    g_string_append_printf(latex, "\\quad \\textcolor{blue}{Selección:} Fila %d (aleatoria)\n", op->fila_pivote + 1);
+                }
 
                 g_string_append_printf(latex, "\\end{itemize}\n\n");
             }
@@ -355,12 +369,13 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
                 "\\textbf{Estado inicial:} Variables de holgura en la base.\\par\\smallskip\n\n");
         }
         
+        // Generar la tabla
         g_string_append_printf(latex,
             "\\begin{center}\n"
             "\\small\n"
             "\\begin{tabular}{|c|c|");
         
-        // Encabezados
+        // Encabezados de columnas
         for (int j = 0; j < tabla->num_vars; j++) {
             g_string_append(latex, "c|");
         }
@@ -369,6 +384,7 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
         }
         g_string_append(latex, "c|}\n\\hline\n");
         
+        // Fila de encabezados
         g_string_append(latex, "\\textbf{Variable} & \\textbf{Z} & ");
         for (int j = 0; j < tabla->num_vars; j++) {
             const char *nombre_var = info->nombres_vars[j];
@@ -381,7 +397,7 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
         }
         g_string_append(latex, "\\textbf{b} \\\\\n\\hline\n");
         
-        // Fila Z
+        // Fila Z (función objetivo)
         g_string_append(latex, "\\textbf{Z} & 1 & ");
         for (int j = 0; j < tabla->num_vars; j++) {
             char num_buffer[32];
@@ -389,6 +405,7 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
             if (fabs(valor) < 0.0001) valor = 0.0;
             formatear_numero(valor, num_buffer, sizeof(num_buffer));
             
+            // Resaltar variables que pueden entrar
             if ((tabla->tipo == MAXIMIZACION && tabla->tabla[0][j] < -EPSILON) ||
                 (tabla->tipo == MINIMIZACION && tabla->tabla[0][j] > EPSILON)) {
                 g_string_append_printf(latex, "\\textcolor{red}{%s} & ", num_buffer);
@@ -397,12 +414,14 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
             }
         }
         
+        // Coeficientes de holgura en fila Z
         for (int j = 0; j < tabla->num_rest; j++) {
             char num_buffer[32];
             formatear_numero(tabla->tabla[0][tabla->num_vars + j], num_buffer, sizeof(num_buffer));
             g_string_append_printf(latex, "%s & ", num_buffer);
         }
         
+        // Valor de Z
         char ld_buffer[32];
         formatear_numero(tabla->tabla[0][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
         g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
@@ -411,55 +430,140 @@ void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInf
         for (int i = 1; i <= tabla->num_rest; i++) {
             const char *var_name = "S";
             int var_index = tabla->variables_basicas[i-1];
+            gboolean es_fila_empate = FALSE;
+            
+            // Verificar si esta fila fue parte de un empate
+            if (iteracion > 0 && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
+                GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
+                if (op_iter) {
+                    OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
+                    if (op->hubo_empate && op->filas_empatadas) {
+                        for (int k = 0; k < op->num_empates; k++) {
+                            if ((i-1) == op->filas_empatadas[k]) {
+                                es_fila_empate = TRUE;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Nombre de variable básica
             if (var_index < tabla->num_vars) {
                 var_name = info->nombres_vars[var_index];
                 char var_latex[32];
                 formatear_nombre_variable_latex(var_name, var_latex, sizeof(var_latex));
-                g_string_append_printf(latex, "\\textbf{\\textcolor{green}{$%s$}} & 0 & ", var_latex);
+                if (es_fila_empate) {
+                    g_string_append_printf(latex, "\\textcolor{blue}{\\textbf{$%s$}} & 0 & ", var_latex);
+                } else {
+                    g_string_append_printf(latex, "\\textbf{\\textcolor{green}{$%s$}} & 0 & ", var_latex);
+                }
             } else {
-                g_string_append_printf(latex, "\\textbf{\\textcolor{green}{$S_%d$}} & 0 & ", var_index - tabla->num_vars + 1);
+                if (es_fila_empate) {
+                    g_string_append_printf(latex, "\\textcolor{blue}{\\textbf{$S_%d$}} & 0 & ", var_index - tabla->num_vars + 1);
+                } else {
+                    g_string_append_printf(latex, "\\textbf{\\textcolor{green}{$S_%d$}} & 0 & ", var_index - tabla->num_vars + 1);
+                }
             }
             
+            // Coeficientes de la fila
             for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
                 char num_buffer[32];
                 formatear_numero(tabla->tabla[i][j], num_buffer, sizeof(num_buffer));
                 
+                // Verificar si esta celda es el elemento pivote
+                gboolean es_elemento_pivote = FALSE;
                 if (resultado->operaciones_pivoteo && iteracion <= g_list_length(resultado->operaciones_pivoteo)) {
                     GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
                     if (op_iter) {
                         OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
                         if (i-1 == op->fila_pivote && j == op->columna_pivote) {
-                            g_string_append_printf(latex, "\\mathbf{[%s]} & ", num_buffer);
-                            continue;
+                            es_elemento_pivote = TRUE;
                         }
                     }
                 }
-                g_string_append_printf(latex, "%s & ", num_buffer);
+                
+                if (es_elemento_pivote) {
+                    g_string_append_printf(latex, "\\mathbf{[%s]} & ", num_buffer);
+                } else if (es_fila_empate) {
+                    g_string_append_printf(latex, "\\textcolor{blue}{%s} & ", num_buffer);
+                } else {
+                    g_string_append_printf(latex, "%s & ", num_buffer);
+                }
             }
             
+            // Lado derecho
             char ld_buffer[32];
             formatear_numero(tabla->tabla[i][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-            g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
+            
+            if (es_fila_empate) {
+                g_string_append_printf(latex, "\\textcolor{blue}{%s} \\\\\n\\hline\n", ld_buffer);
+            } else {
+                g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
+            }
         }
         
         g_string_append(latex, "\\end{tabular}\n");
         g_string_append(latex, "\\end{center}\n\n");
+        
+        // Leyenda mejorada
+        gboolean hay_empates_en_esta_iteracion = FALSE;
+        if (iteracion > 0 && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
+            GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
+            if (op_iter) {
+                OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
+                hay_empates_en_esta_iteracion = op->hubo_empate;
+            }
+        }
+        
+        if (hay_empates_en_esta_iteracion) {
+            g_string_append_printf(latex, "\\noindent\\textcolor{blue}{$\\blacksquare$}\\hspace{0.5em}\\textbf{Filas en azul:} empates en la selección del pivote\\\\\n\n");
+        }
+        
+        // Variables en la base
         g_string_append(latex, "\\textbf{Variables en la base:} ");
         for (int i = 0; i < tabla->num_rest; i++) {
             int var_index = tabla->variables_basicas[i];
+            gboolean es_variable_empate = FALSE;
+            
+            // Verificar si esta variable está en una fila que fue empate
+            if (hay_empates_en_esta_iteracion && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
+                GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
+                if (op_iter) {
+                    OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
+                    if (op->hubo_empate && op->filas_empatadas) {
+                        for (int k = 0; k < op->num_empates; k++) {
+                            if (i == op->filas_empatadas[k]) {
+                                es_variable_empate = TRUE;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
             if (var_index < tabla->num_vars) {
                 const char *nombre_var = info->nombres_vars[var_index];
                 char var_latex[32];
                 formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-                g_string_append_printf(latex, "\\textcolor{green}{$%s$}", var_latex);
+                if (es_variable_empate) {
+                    g_string_append_printf(latex, "\\textcolor{blue}{$%s$}", var_latex);
+                } else {
+                    g_string_append_printf(latex, "\\textcolor{green}{$%s$}", var_latex);
+                }
             } else {
-                g_string_append_printf(latex, "\\textcolor{green}{$S_%d$}", var_index - tabla->num_vars + 1);
+                if (es_variable_empate) {
+                    g_string_append_printf(latex, "\\textcolor{blue}{$S_%d$}", var_index - tabla->num_vars + 1);
+                } else {
+                    g_string_append_printf(latex, "\\textcolor{green}{$S_%d$}", var_index - tabla->num_vars + 1);
+                }
             }
             if (i < tabla->num_rest - 1) {
                 g_string_append(latex, ", ");
             }
         }
         g_string_append(latex, "\\\\\n\n");
+        
         iter = g_list_next(iter);
         iteracion++;
     }
@@ -858,6 +962,9 @@ void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info,
         "\n"
         "\\definecolor{basecolor}{RGB}{0,128,0}\n"
         "\\definecolor{entracolor}{RGB}{255,0,0}\n"
+        "\\definecolor{entracolor}{RGB}{0,0,255}\n"
+        "\\definecolor{empatecolor}{RGB}{0,0,200}\n"  
+        "\\definecolor{pivotecolor}{RGB}{200,0,200}\n"
         "\n"
         "\\title{Resultados del Método Simplex\\\\\n"
         "\\large Problema: \\textbf{%s}}\n"
