@@ -1,5 +1,5 @@
-NAME,MInimizacion
-TYPE,MAX
+NAME,Minimizacion
+TYPE,MIN
 N,2
 VARS,X1,X2
 M,2

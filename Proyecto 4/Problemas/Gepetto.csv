@@ -1,0 +1,9 @@
+NAME,Gepetto
+TYPE,MAX
+N,2
+VARS,X1,X2
+M,3
+Z,3,2
+R,2,1,<=,100
+R,1,1,<=,80
+R,1,0,<=,40

@@ -1,0 +1,8 @@
+NAME,Problema10
+TYPE,MIN
+N,2
+VARS,X1,X2
+M,2
+Z,-1,-2
+R,2,1,<=,5
+R,1,1,<=,3

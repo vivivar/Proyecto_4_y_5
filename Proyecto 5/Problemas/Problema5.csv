@@ -1,0 +1,8 @@
+NAME,Problema5
+TYPE,MAX
+N,3
+VARS,X1,X2,X3
+M,2
+Z,5,3,1
+R,1,1,3,<=,6
+R,5,3,6,<=,15

@@ -1,0 +1,249 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\definecolor{basecolor}{RGB}{0,128,0}
+\definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{entracolor}{RGB}{0,0,255}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{Problema1}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre II: 2025
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El m\'etodo Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza A\'erea de los Estados Unidos. \\
+
+Es uno de los algoritmos m\'as importantes en la historia de la optimizaci\'on matem\'atica y ha sido fundamental en el desarrollo de la programaci\'on lineal. Usa operaciones sobre matrices hasta encontrar la soluci\'on \'optima o determinar que el problema no tiene soluci\'on. Parte de un v\'ertice de la regi\'on factible y "salta" a v\'ertices adyacentes que mejoren lo encontrado hasta encontrar la condici\'on de salida.
+
+\subsection{Complejidad}
+En el peor de los casos el S\'implex podr\'ia probar tantas bases como el m\'etodo exhaustivo. (Solo en ejemplos montados para que falle.) Normalmente va a encontrar la soluci\'on \'optima en $3n$ intentos.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la soluci\'on \'optima en un n\'umero finito de pasos (en la mayor\'ia de los casos pr\'acticos)
+\item \textbf{Complejidad:} En el peor caso tiene complejidad exponencial, pero en la pr\'actica es muy eficiente
+\item \textbf{Optimalidad:} Garantiza encontrar la soluci\'on \'optima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteraci\'on
+\end{itemize}
+
+\subsection{Aplicaciones}
+S\'implex se usa en aplicaciones profesionales como la optimizaci\'on de recursos empresariales, la log\'istica y la gesti\'on de proyectos, donde se usa para encontrar la soluci\'on m\'as eficiente a problemas complejos con m\'ultiples variables y restricciones.
+
+\subsection{Descripci\'on del M\'etodo}
+El m\'etodo Simplex opera movi\'endose entre v\'ertices adyacentes del poliedro factible, mejorando el valor de la funci\'on objetivo en cada paso hasta alcanzar el \'optimo.
+
+\section{Pasos del M\'etodo Simplex}
+\begin{enumerate}
+\item \textbf{Formulaci\'on del problema:}
+\begin{itemize}
+\item Define la funci\'on objetivo a maximizar o minimizar y las restricciones lineales asociadas.
+\item Aseg\'urate de que todas las variables de decisi\'on sean no negativas.
+\end{itemize}
+
+\item \textbf{Conversi\'on a forma est\'andar:}
+\begin{itemize}
+\item Transforma todas las restricciones de desigualdad en igualdades introduciendo variables de holgura (sumar una variable para restricciones $\leq$) o variables de exceso (restar una variable para restricciones $\geq$).
+\item Aseg\'urate de que la funci\'on objetivo tambi\'en se iguale a cero.
+\end{itemize}
+
+\item \textbf{Creaci\'on de la tabla inicial:}
+\begin{itemize}
+\item Organiza el problema en una tabla llamada Tabla Simplex.
+\item La tabla inicial se construye con las variables del problema y una matriz identidad formada por las variables de holgura/exceso.
+\end{itemize}
+
+\item \textbf{Iteraci\'on:}
+\begin{itemize}
+\item \textbf{Selecci\'on de la variable entrante:} Elige la columna con el valor m\'as negativo en la fila de la funci\'on objetivo (para maximizar) o el m\'as positivo (para minimizar). Esta es la columna que entra en la base.
+\item \textbf{Selecci\'on de la variable saliente:} Calcula la raz\'on entre el lado derecho de cada restricci\'on y el valor correspondiente en la columna de la variable entrante. La fila con el cociente m\'as peque\~no es la que sale de la base.
+\item \textbf{Pivoteo:} Realiza operaciones de escalerizaci\'on para hacer que el elemento en la intersecci\'on de la fila entrante y la columna saliente sea $1$ y todos los dem\'as elementos en esa columna sean $0$. Esto actualiza la tabla y la soluci\'on.
+\end{itemize}
+
+\item \textbf{Comprobaci\'on de la soluci\'on \'optima:}
+\begin{itemize}
+\item Verifica si la fila de la funci\'on objetivo en la tabla ya no contiene coeficientes negativos (para maximizar) o positivos (para minimizar).
+\item Si es as\'i, la soluci\'on es \'optima y se puede leer directamente de la tabla.
+\item Si no, repite el proceso de iteraci\'on.
+\end{itemize}
+\end{enumerate}
+\section{Problema Original}
+
+\subsection{Formulación Matemática}
+\textbf{Problema de Maximización}
+
+\[ \text{Maximizar } Z = 4x_{1} + 1x_{2} \]
+
+\textbf{Sujeto a:}
+\begin{align*}
+2x_{1} + 3x_{2} &\leq 4 \\
+1x_{1} + 1x_{2} &\leq 1 \\
+4x_{1} + 1x_{2} &\leq 2
+\end{align*}
+
+\textbf{Con:}
+\[ x_{1} \geq 0, \quad x_{2} \geq 0 \]
+
+\section{Tabla Inicial del Método Simplex}
+
+La tabla inicial del método Simplex se construye agregando variables de holgura para convertir las desigualdades en igualdades.
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Z} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$S_1$} & \textbf{$S_2$} & \textbf{$S_3$} & \textbf{b} \\
+\hline
+\textbf{Z} & 1 & 0 & 0 & 0 & 0 & 1 & 2 \\
+\hline
+\textbf{$S_1$} & 0 & 0 & 2.50 & 1 & 0 & 0 & 3 \\
+\hline
+\textbf{$S_2$} & 0 & 0 & 0.75 & 0 & 1 & 0 & 0.50 \\
+\hline
+\textbf{$S_3$} & 0 & 1 & 0.25 & 0 & 0 & 1 & 0.50 \\
+\hline
+\end{tabular}
+\end{center}
+
+\item \textbf{$S_1$:} Coeficientes de las variables de holgura
+\item \textbf{$S_2$:} Coeficientes de las variables de holgura
+\item \textbf{$S_3$:} Coeficientes de las variables de holgura
+\item \textbf{b:} T\'erminos independientes (lado derecho)
+\item \textbf{Base inicial:} Variables de holgura $S_1, S_2, \ldots, S_3$
+\end{itemize}
+
+\section{Tabla Final}
+
+\textbf{Soluciones Múltiples:} Se encontraron dos tablas finales que representan diferentes soluciones óptimas.
+
+\subsection{Primera Solución Óptima}
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{$s_3$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & 0 & 0 & 0 & 0 & 1 & 2 \\
+\hline
+\textbf{$s_1$} & 0 & 2.50 & 1 & 0 & -0.50 & 3 \\
+\hline
+\textbf{$s_2$} & 0 & 0.75 & 0 & 1 & -0.25 & 0.50 \\
+\hline
+\textbf{$x_{1}$} & 1 & 0.25 & 0 & 0 & 0.25 & 0.50 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Segunda Solución Óptima}
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+ & \textbf{X1} & \textbf{X2} & \textbf{$s_1$} & \textbf{$s_2$} & \textbf{$s_3$} & \textbf{L.D.} \\
+\hline
+\textbf{Z} & 0 & 0 & 0 & 0 & 1 & 2 \\
+\hline
+\textbf{$s$} & 0 & 0 & 1 & -3.33 & 0.33 & 1.33 \\
+\hline
+\textbf{$X2$} & 0 & 1 & 0 & 1.33 & -0.33 & 0.67 \\
+\hline
+\textbf{$X1$} & 1 & 0 & 0 & -0.33 & 0.33 & 0.33 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Solución Óptima}
+
+\textbf{Valor óptimo de la función objetivo: } $Z = 2$
+
+\textbf{Valores de las variables:}
+\begin{align*}
+x_{1} &= 0.50 \\
+x_{2} &= 0 \\
+S_1 &= 3 \\
+S_2 &= 0.50 \\
+S_3 &= 0
+\end{align*}
+
+\textbf{Tipo:} Soluciones Múltiples
+
+\subsection{Explicación de Soluciones Múltiples}
+
+Cuando un problema de programación lineal tiene soluciones múltiples, significa que existe más de una combinación de valores para las variables de decisión que produce el mismo valor óptimo de la función objetivo.
+
+\textbf{Condición para soluciones múltiples:}
+\begin{itemize}
+\item Al menos una variable no básica tiene coeficiente cero en la fila Z de la tabla óptima
+\item Esto indica que podemos introducir esa variable en la base sin cambiar el valor de Z
+\item El conjunto de soluciones óptimas forma un segmento de recta (en 2D) o un hiperplano (en nD)
+\end{itemize}
+
+\textbf{Ecuación para generar todas las soluciones óptimas:}
+\[
+X = \lambda X_1 + (1-\lambda) X_2, \quad 0 \leq \lambda \leq 1
+\]
+Donde $X_1$ y $X_2$ son las dos soluciones básicas encontradas y $\lambda$ es un parámetro entre 0 y 1.
+
+\subsection{Soluciones Adicionales}
+
+A continuación se presentan 3 soluciones adicionales obtenidas como combinaciones convexas de las dos soluciones básicas:
+
+\subsubsection{Solución con $\lambda = 0,25$}
+\begin{align*}
+x_{1} &= 0.38 \\
+x_{2} &= 0.50
+\end{align*}
+
+\textbf{Verificación: } $Z = 2$ (mismo valor óptimo)\par\smallskip
+
+\subsubsection{Solución con $\lambda = 0,50$}
+\begin{align*}
+x_{1} &= 0.42 \\
+x_{2} &= 0.33
+\end{align*}
+
+\textbf{Verificación: } $Z = 2$ (mismo valor óptimo)\par\smallskip
+
+\subsubsection{Solución con $\lambda = 0,75$}
+\begin{align*}
+x_{1} &= 0.46 \\
+x_{2} &= 0.17
+\end{align*}
+
+\textbf{Verificación: } $Z = 2$ (mismo valor óptimo)\par\smallskip
+
+\textbf{Iteraciones realizadas:} 1
+
+\textbf{Observaciones:} Se detectaron soluciones múltiples
+
+\end{document}
