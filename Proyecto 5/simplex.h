@@ -56,7 +56,7 @@ typedef struct {
     TablaSimplex *segunda_tabla;
 } ResultadoSimplex;
 
-// Estructura para información del problema (usada en LaTeX)
+// Estructura para información del problema 
 typedef struct {
     const char *nombre_problema;
     const char *tipo_problema;
@@ -81,5 +81,6 @@ void liberar_tabla_simplex(TablaSimplex *tabla);
 void liberar_resultado(ResultadoSimplex *resultado);
 const char* obtener_nombre_variable(TablaSimplex *tabla, int indice);
 void extraer_solucion(TablaSimplex *tabla, double *solucion);
+void preparar_tabla_simplex(TablaSimplex *tabla);
 
 #endif

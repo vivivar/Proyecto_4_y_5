@@ -92,7 +92,7 @@ void agregar_restriccion(TablaSimplex *tabla, int indice_rest, double *coeficien
     tabla->tipos_restricciones[indice_rest] = tipo;
 }
 
-static void preparar_tabla_simplex(TablaSimplex *tabla) {
+void preparar_tabla_simplex(TablaSimplex *tabla) {
     tabla->num_vars_holgura = 0;
     tabla->num_vars_exceso = 0;
     tabla->num_vars_artificiales = 0;
@@ -385,13 +385,22 @@ static int verificar_solucion_multiple(TablaSimplex *tabla) {
     }
     return 0;
 }
+
 // Función para encontrar solución alternativa para múltiples soluciones
 static TablaSimplex* encontrar_solucion_alternativa(TablaSimplex *tabla_original) {
     TablaSimplex *tabla = copiar_tabla(tabla_original);
     int total_vars = tabla->num_vars_decision + tabla->num_vars_holgura + tabla->num_vars_exceso + tabla->num_vars_artificiales;
     
     for (int j = 0; j < total_vars; j++) {
-        if (!tabla->es_artificial[j] && fabs(tabla->tabla[0][j]) < EPSILON) {
+        int es_variable_base = 0;
+        for (int i = 0; i < tabla->num_restricciones; i++) {
+            if (tabla->variables_base[i] == j) {
+                es_variable_base = 1;
+                break;
+            }
+        }
+        
+        if (!es_variable_base && !tabla->es_artificial[j] && fabs(tabla->tabla[0][j]) < EPSILON) {
             int fila_pivote = -1;
             double min_ratio = 1e15;
             

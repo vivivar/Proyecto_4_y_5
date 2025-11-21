@@ -4,20 +4,29 @@
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{xcolor}
+\usepackage[table]{xcolor}
 \usepackage{graphicx}
 \usepackage{geometry}
+\usepackage{colortbl}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning,calc}
 \geometry{margin=2.5cm}
 \usepackage{fancyhdr}
+\usepackage{multirow}
+\usepackage{float}
 \setlength{\headheight}{14.5pt}
 \pagestyle{fancy}
 \fancyhf{}
 \rhead{Investigación de Operaciones}
 \lhead{Método Simplex}
 
-\definecolor{basecolor}{RGB}{0,128,0}
-\definecolor{entracolor}{RGB}{255,0,0}
-\definecolor{empatecolor}{RGB}{0,0,200}
-\definecolor{pivotecolor}{RGB}{200,0,200}
+\definecolor{basecolor}{RGB}{200,255,200}
+\definecolor{entracolor}{RGB}{255,150,150}
+\definecolor{salecolor}{RGB}{255,200,100}
+\definecolor{pivotecolor}{RGB}{200,100,255}
+\definecolor{empatecolor}{RGB}{255,255,100}
+\definecolor{calculocolor}{RGB}{100,255,255}
 
 \title{Resultados del Método Simplex\\
 \large Problema: \textbf{prueba8}}
@@ -135,68 +144,130 @@ $s_{1}$ & 1 & 2 & 1 & 0 & 0 & 0 & 4 \\
 
 \textbf{Iteración:} 1\\
 \textbf{Variables básicas:} $a_{1}$, $a_{2}$, $s_{1}$\\
+\textbf{Variable que entra:} $?$\\
+\textbf{Cálculo de razones para seleccionar pivote:}
+\begin{itemize}
+\item Fila 1: $\frac{3}{3} = 1$
+\item Fila 2: $\frac{6}{4} = \frac{3}{2}$
+\item Fila 3: $\frac{4}{1} = 4$
+\item \textbf{Razón mínima:} 1 (Fila 1)
+\end{itemize}
+
 
 \begin{center}
 \small
 \begin{tabular}{|c|c|c|c|c|c|c|c|}
 \hline
-\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\textbf{Base} & \cellcolor{entracolor}\textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
 \hline
-Z & 7,0M & 4,0M & 0 & -M & 2M & 2M & 9M \\
+Z & \cellcolor{pivotecolor}7,0M & 4,0M & 0 & -M & 2M & 2M & 9M \\
 \hline
-$a_{1}$ & 3 & 1 & 0 & 0 & 1 & 0 & 3 \\
+$a_{1}$ & \cellcolor{entracolor}3 & 1 & 0 & 0 & 1 & 0 & 3 \\
 \hline
-$a_{2}$ & 4 & 3 & 0 & -1 & 0 & 1 & 6 \\
+$a_{2}$ & \cellcolor{entracolor}4 & 3 & 0 & -1 & 0 & 1 & 6 \\
 \hline
-$s_{1}$ & 1 & 2 & 1 & 0 & 0 & 0 & 4 \\
+$s_{1}$ & \cellcolor{entracolor}1 & 2 & 1 & 0 & 0 & 0 & 4 \\
 \hline
 \end{tabular}
 \end{center}
 
+\vspace{0.2cm}
+\textbf{Significado de colores:}
+\begin{itemize}\small
+\item \textcolor{entracolor}{\blacksquare} Variable que entra
+\item \textcolor{salecolor}{\blacksquare} Variable que sale
+\item \textcolor{pivotecolor}{\blacksquare} Elemento pivote
+\end{itemize}
 \subsection{Tabla Intermedia}
 
 \textbf{Iteración:} 2\\
-\textbf{Variables básicas:} $x_{1}$, $a_{2}$, $s_{1}$\\
+\textbf{Variables básicas:} $a_{1}$, $a_{2}$, $s_{1}$\\
+\textbf{Variable que entra:} $x_{1}$\\
+\textbf{Cálculo de razones para seleccionar pivote:}
+\begin{itemize}
+\item Fila 1: $\frac{3}{3} = 1$
+\item Fila 2: $\frac{6}{4} = \frac{3}{2}$
+\item Fila 3: $\frac{4}{1} = 4$
+\item \textbf{Razón mínima:} 1 (Fila 1)
+\end{itemize}
+
+\textbf{Operación de pivote:}
+\begin{itemize}
+\item \textcolor{entracolor}{\textbf{Variable que entra:}} $x_{1}$
+\item \textcolor{salecolor}{\textbf{Variable que sale:}} $a_{1}$
+\item \textcolor{pivotecolor}{\textbf{Elemento pivote:}} $3$
+\item \textbf{Posición:} Fila 1, Columna 1
+\end{itemize}
 
 \begin{center}
 \small
 \begin{tabular}{|c|c|c|c|c|c|c|c|}
 \hline
-\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\textbf{Base} & \cellcolor{entracolor}\textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
 \hline
-Z & 0 & 1,7M & 0 & -M & -0,3M & 2M & 2,0M \\
+Z & \cellcolor{entracolor}7,0M & 4,0M & 0 & -M & 2M & 2M & 9M \\
 \hline
-$x_{1}$ & 1 & 0.33 & 0 & 0 & 0.33 & 0 & 1 \\
+\cellcolor{salecolor}$a_{1}$ & \cellcolor{pivotecolor}3 & \cellcolor{salecolor}1 & \cellcolor{salecolor}0 & \cellcolor{salecolor}0 & \cellcolor{salecolor}1 & \cellcolor{salecolor}0 & \cellcolor{salecolor}3 \\
 \hline
-$a_{2}$ & 0 & 1.67 & 0 & -1 & -1.33 & 1 & 2 \\
+$a_{2}$ & \cellcolor{entracolor}4 & 3 & 0 & -1 & 0 & 1 & 6 \\
 \hline
-$s_{1}$ & 0 & 1.67 & 1 & 0 & -0.33 & 0 & 3 \\
+$s_{1}$ & \cellcolor{entracolor}1 & 2 & 1 & 0 & 0 & 0 & 4 \\
 \hline
 \end{tabular}
 \end{center}
 
+\vspace{0.2cm}
+\textbf{Significado de colores:}
+\begin{itemize}\small
+\item \textcolor{entracolor}{\blacksquare} Variable que entra
+\item \textcolor{salecolor}{\blacksquare} Variable que sale
+\item \textcolor{pivotecolor}{\blacksquare} Elemento pivote
+\end{itemize}
 \subsection{Tabla Intermedia}
 
 \textbf{Iteración:} 3\\
-\textbf{Variables básicas:} $x_{1}$, $x_{2}$, $s_{1}$\\
+\textbf{Variables básicas:} $x_{1}$, $a_{2}$, $s_{1}$\\
+\textbf{Variable que entra:} $x_{2}$\\
+\textbf{Cálculo de razones para seleccionar pivote:}
+\begin{itemize}
+\item Fila 1: $\frac{1}{0.3333} = 3$
+\item Fila 2: $\frac{2}{1.6667} = \frac{6}{5}$
+\item Fila 3: $\frac{3}{1.6667} = \frac{9}{5}$
+\item \textbf{Razón mínima:} \frac{6}{5} (Fila 2)
+\end{itemize}
+
+\textbf{Operación de pivote:}
+\begin{itemize}
+\item \textcolor{entracolor}{\textbf{Variable que entra:}} $x_{2}$
+\item \textcolor{salecolor}{\textbf{Variable que sale:}} $a_{2}$
+\item \textcolor{pivotecolor}{\textbf{Elemento pivote:}} $1.6667$
+\item \textbf{Posición:} Fila 2, Columna 2
+\end{itemize}
 
 \begin{center}
 \small
 \begin{tabular}{|c|c|c|c|c|c|c|c|}
 \hline
-\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\textbf{Base} & \textbf{$x_{1}$} & \cellcolor{entracolor}\textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
 \hline
-Z & 0 & 0 & 0 & 0.20 & 1,0M & 1,0M & 3.60 \\
+Z & 0 & \cellcolor{entracolor}1,7M & 0 & -M & -0,3M & 2M & 2,0M \\
 \hline
-$x_{1}$ & 1 & 0 & 0 & 0.20 & 0.60 & -0.20 & 0.60 \\
+$x_{1}$ & 1 & \cellcolor{entracolor}0.3333 & 0 & 0 & 0.3333 & 0 & 1 \\
 \hline
-$x_{2}$ & 0 & 1 & 0 & -0.60 & -0.80 & 0.60 & 1.20 \\
+\cellcolor{salecolor}$a_{2}$ & \cellcolor{salecolor}0 & \cellcolor{pivotecolor}1.6667 & \cellcolor{salecolor}0 & \cellcolor{salecolor}-1 & \cellcolor{salecolor}-1.3333 & \cellcolor{salecolor}1 & \cellcolor{salecolor}2 \\
 \hline
-$s_{1}$ & 0 & 0 & 1 & 1 & 1 & -1 & 1 \\
+$s_{1}$ & 0 & \cellcolor{entracolor}1.6667 & 1 & 0 & -0.3333 & 0 & 3 \\
 \hline
 \end{tabular}
 \end{center}
 
+\vspace{0.2cm}
+\textbf{Significado de colores:}
+\begin{itemize}\small
+\item \textcolor{entracolor}{\blacksquare} Variable que entra
+\item \textcolor{salecolor}{\blacksquare} Variable que sale
+\item \textcolor{pivotecolor}{\blacksquare} Elemento pivote
+\end{itemize}
 \subsection{Tabla Final - Solución Óptima}
 
 \textbf{Variables básicas:} $x_{1}$, $x_{2}$, $e_{1}$\\
@@ -207,11 +278,11 @@ $s_{1}$ & 0 & 0 & 1 & 1 & 1 & -1 & 1 \\
 \hline
 \textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
 \hline
-Z & 0 & 0 & -0.20 & 0 & 1,0M & M & 3.40 \\
+Z & 0 & 0 & -0.2000 & 0 & 1,0M & M & 3.4000 \\
 \hline
-$x_{1}$ & 1 & 0 & -0.20 & 0 & 0.40 & 0 & 0.40 \\
+$x_{1}$ & 1 & 0 & -0.2000 & 0 & 0.4000 & 0 & 0.4000 \\
 \hline
-$x_{2}$ & 0 & 1 & 0.60 & 0 & -0.20 & 0 & 1.80 \\
+$x_{2}$ & 0 & 1 & 0.6000 & 0 & -0.2000 & 0 & 1.8000 \\
 \hline
 $e_{1}$ & 0 & 0 & 1 & 1 & 1 & -1 & 1 \\
 \hline
@@ -220,8 +291,8 @@ $e_{1}$ & 0 & 0 & 1 & 1 & 1 & -1 & 1 \\
 
 \textbf{Solución:}
 \begin{align*}
-x_{1} &= 0.40 \\
-x_{2} &= 1.80
+x_{1} &= 0.4000 \\
+x_{2} &= 1.8000
 \end{align*}
 
 
@@ -233,8 +304,8 @@ x_{2} &= 1.80
 
 \textbf{Valores de las variables de decisión:}\\
 \begin{align*}
-x_{1} &= 0.40 \\
-x_{2} &= 1.80
+x_{1} &= 0.4000 \\
+x_{2} &= 1.8000
 \end{align*}
 
 \section{Conclusión}

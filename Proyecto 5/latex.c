@@ -11,6 +11,15 @@
 #define EPSILON 1.0e-10
 #endif
 
+// Colores mejorados para mejor contraste y legibilidad
+#define COLOR_BASE "green!20"
+#define COLOR_FUERA_BASE "blue!10"
+#define COLOR_ENTRA "red!25"
+#define COLOR_SALE "orange!25"
+#define COLOR_PIVOTE "violet!30"
+#define COLOR_EMPATE "yellow!20"
+#define COLOR_CALCULO "cyan!10"
+
 // Función auxiliar para escapar caracteres especiales de LaTeX
 static char* escape_latex(const char *texto) {
     if (!texto) return g_strdup("");
@@ -39,9 +48,41 @@ static void formatear_numero(double valor, char *buffer, size_t buffer_size) {
     if (fabs(valor - round(valor)) < 0.0001) {
         snprintf(buffer, buffer_size, "%.0f", valor);
     } else {
-        snprintf(buffer, buffer_size, "%.2f", valor);
+        snprintf(buffer, buffer_size, "%.4f", valor);
         for (char *p = buffer; *p; p++) {
             if (*p == ',') *p = '.';
+        }
+    }
+}
+
+static void formatear_fraccion(double valor, char *buffer, size_t buffer_size) {
+    double valor_abs = fabs(valor);
+    
+    if (fabs(valor_abs - round(valor_abs)) < EPSILON) {
+        snprintf(buffer, buffer_size, "%.0f", valor);
+    } else {
+        int numerador, denominador;
+        int encontrado = 0;
+        
+        for (denominador = 2; denominador <= 12; denominador++) {
+            numerador = round(valor_abs * denominador);
+            if (fabs(valor_abs - (double)numerador/denominador) < EPSILON) {
+                if (denominador == 1) {
+                    snprintf(buffer, buffer_size, "%s%d", (valor < 0) ? "-" : "", numerador);
+                } else {
+                    if (valor < 0) {
+                        snprintf(buffer, buffer_size, "-\\frac{%d}{%d}", numerador, denominador);
+                    } else {
+                        snprintf(buffer, buffer_size, "\\frac{%d}{%d}", numerador, denominador);
+                    }
+                }
+                encontrado = 1;
+                break;
+            }
+        }
+        
+        if (!encontrado) {
+            formatear_numero(valor, buffer, buffer_size);
         }
     }
 }
@@ -96,6 +137,48 @@ static void formatear_nombre_variable_tabla(const char *nombre_original, char *b
     snprintf(buffer, buffer_size, "$%s$", var_latex);
 }
 
+// Función para mostrar cálculos de razones con fracciones
+static void mostrar_calculos_pivote(GString *latex, TablaSimplex *tabla, int columna_entra) {
+    if (!tabla || columna_entra < 0) return;
+    
+    g_string_append(latex, "\\textbf{Cálculo de razones para seleccionar pivote:}\n");
+    g_string_append(latex, "\\begin{itemize}\n");
+    
+    double menor_razon = 1e9;
+    int fila_pivote = -1;
+    
+    for (int i = 1; i < tabla->filas; i++) {
+        double elemento_columna = tabla->tabla[i][columna_entra];
+        double termino_independiente = tabla->tabla[i][tabla->columnas - 1];
+        
+        if (elemento_columna > EPSILON) {
+            double razon = termino_independiente / elemento_columna;
+            char razon_buffer[32], elemento_buffer[32], termino_buffer[32];
+            
+            formatear_numero(termino_independiente, termino_buffer, sizeof(termino_buffer));
+            formatear_numero(elemento_columna, elemento_buffer, sizeof(elemento_buffer));
+            formatear_fraccion(razon, razon_buffer, sizeof(razon_buffer));
+            
+            g_string_append_printf(latex, "\\item Fila %d: $\\frac{%s}{%s} = %s$\n", 
+                                  i, termino_buffer, elemento_buffer, razon_buffer);
+            
+            if (razon < menor_razon) {
+                menor_razon = razon;
+                fila_pivote = i;
+            }
+        }
+    }
+    
+    if (fila_pivote > 0) {
+        char menor_razon_buffer[32];
+        formatear_fraccion(menor_razon, menor_razon_buffer, sizeof(menor_razon_buffer));
+        g_string_append_printf(latex, "\\item \\textbf{Razón mínima:} %s (Fila %d)\n", 
+                              menor_razon_buffer, fila_pivote);
+    }
+    
+    g_string_append(latex, "\\end{itemize}\n\n");
+}
+
 // Función para generar la portada y encabezado del documento
 static void generar_portada_latex(GString *latex, const char *nombre_problema) {
     char *nombre_escape = escape_latex(nombre_problema);
@@ -107,20 +190,29 @@ static void generar_portada_latex(GString *latex, const char *nombre_problema) {
         "\\usepackage{amsmath,amssymb}\n"
         "\\usepackage{booktabs}\n"
         "\\usepackage{xcolor}\n"
+        "\\usepackage[table]{xcolor}\n"
         "\\usepackage{graphicx}\n"
         "\\usepackage{geometry}\n"
+        "\\usepackage{colortbl}\n"
+        "\\usepackage{array}\n"  
+        "\\usepackage{tikz}\n"
+        "\\usetikzlibrary{shapes,arrows,positioning,calc}\n"
         "\\geometry{margin=2.5cm}\n"
         "\\usepackage{fancyhdr}\n"
+        "\\usepackage{multirow}\n"
+        "\\usepackage{float}\n"
         "\\setlength{\\headheight}{14.5pt}\n"
         "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
         "\\rhead{Investigación de Operaciones}\n"
         "\\lhead{Método Simplex}\n"
         "\n"
-        "\\definecolor{basecolor}{RGB}{0,128,0}\n"
-        "\\definecolor{entracolor}{RGB}{255,0,0}\n"
-        "\\definecolor{empatecolor}{RGB}{0,0,200}\n"
-        "\\definecolor{pivotecolor}{RGB}{200,0,200}\n"
+        "\\definecolor{basecolor}{RGB}{200,255,200}\n"
+        "\\definecolor{entracolor}{RGB}{255,150,150}\n"    
+        "\\definecolor{salecolor}{RGB}{255,200,100}\n"     
+        "\\definecolor{pivotecolor}{RGB}{200,100,255}\n"   
+        "\\definecolor{empatecolor}{RGB}{255,255,100}\n"
+        "\\definecolor{calculocolor}{RGB}{100,255,255}\n"
         "\n"
         "\\title{Resultados del Método Simplex\\\\\n"
         "\\large Problema: \\textbf{%s}}\n"
@@ -262,7 +354,6 @@ void generar_problema_original_latex(GString *latex, ProblemaInfo *info) {
         char rhs_buffer[32];
         formatear_numero(info->lados_derechos[r], rhs_buffer, sizeof(rhs_buffer));
         
-        // CORRECCIÓN: Usar el símbolo correcto según el tipo de restricción
         const char* simbolo;
         switch (info->tipos_restricciones[r]) {
             case RESTRICCION_LE:
@@ -275,7 +366,7 @@ void generar_problema_original_latex(GString *latex, ProblemaInfo *info) {
                 simbolo = "=";
                 break;
             default:
-                simbolo = "\\leq"; // Por defecto
+                simbolo = "\\leq";
                 break;
         }
         
@@ -301,14 +392,66 @@ void generar_problema_original_latex(GString *latex, ProblemaInfo *info) {
     g_string_append(latex, "\n\\]\n\n");
 }
 
-// Función para generar una tabla simplex en LaTeX
-void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo, int iteracion, gboolean es_final) {
-    if (!tabla || !tabla->tabla) return;
-    g_string_append_printf(latex, "\\subsection{%s}\n\n", titulo);
+// Función para determinar si una variable es básica
+static gboolean es_variable_basica(TablaSimplex *tabla, int indice_variable) {
+    for (int i = 0; i < tabla->num_restricciones; i++) {
+        if (tabla->variables_base[i] == indice_variable) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+// Función para generar información de pivote
+static InfoPivote* calcular_info_pivote(TablaSimplex *tabla_actual, TablaSimplex *tabla_siguiente) {
+    InfoPivote *info = g_new0(InfoPivote, 1);
+    if (!tabla_actual || !tabla_siguiente) return info;
+    for (int j = 0; j < tabla_actual->columnas - 1; j++) {
+        gboolean en_base_actual = es_variable_basica(tabla_actual, j);
+        gboolean en_base_siguiente = es_variable_basica(tabla_siguiente, j);
+        
+        if (!en_base_actual && en_base_siguiente) {
+            info->columna_pivote = j;
+            info->variable_entra = g_strdup(tabla_actual->nombres_vars[j]);
+            break;
+        }
+    }
     
+    for (int i = 0; i < tabla_actual->num_restricciones; i++) {
+        int var_base_actual = tabla_actual->variables_base[i];
+        gboolean encontrada = FALSE;
+        
+        for (int j = 0; j < tabla_siguiente->num_restricciones; j++) {
+            if (tabla_siguiente->variables_base[j] == var_base_actual) {
+                encontrada = TRUE;
+                break;
+            }
+        }
+        
+        if (!encontrada) {
+            info->fila_pivote = i + 1; // +1 porque fila 0 es Z
+            info->variable_sale = g_strdup(tabla_actual->nombres_vars[var_base_actual]);
+            break;
+        }
+    }
+    
+    if (info->fila_pivote > 0 && info->columna_pivote >= 0) {
+        info->valor_pivote = tabla_actual->tabla[info->fila_pivote][info->columna_pivote];
+    }
+    
+    return info;
+}
+
+// Función para generar una tabla simplex en LaTeX 
+void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo, int iteracion, 
+                        gboolean es_final, InfoPivote *info_pivote) {
+    if (!tabla || !tabla->tabla) return;
+    char var_entra_latex[64], var_sale_latex[64];
+    g_string_append_printf(latex, "\\subsection{%s}\n\n", titulo);
     if (iteracion >= 0) {
         g_string_append_printf(latex, "\\textbf{Iteración:} %d\\\\\n", iteracion);
     }
+    
     g_string_append(latex, "\\textbf{Variables básicas:} ");
     for (int i = 0; i < tabla->num_restricciones; i++) {
         int var_base = tabla->variables_base[i];
@@ -319,7 +462,35 @@ void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo
             g_string_append(latex, ", ");
         }
     }
-    g_string_append(latex, "\\\\\n\n");
+    g_string_append(latex, "\\\\\n");
+    
+    if (info_pivote && info_pivote->columna_pivote >= 0) {
+        g_string_append(latex, "\\textbf{Variable que entra:} $");
+        formatear_nombre_variable_latex(info_pivote->variable_entra, var_entra_latex, sizeof(var_entra_latex));
+        g_string_append_printf(latex, "%s$\\\\\n", var_entra_latex);
+        
+        mostrar_calculos_pivote(latex, tabla, info_pivote->columna_pivote);
+    }
+    
+    if (info_pivote && info_pivote->variable_entra && info_pivote->variable_sale) {
+        g_string_append(latex, "\\textbf{Operación de pivote:}\n");
+        g_string_append(latex, "\\begin{itemize}\n");
+        
+        formatear_nombre_variable_latex(info_pivote->variable_entra, var_entra_latex, sizeof(var_entra_latex));
+        formatear_nombre_variable_latex(info_pivote->variable_sale, var_sale_latex, sizeof(var_sale_latex));
+        g_string_append_printf(latex, "\\item \\textcolor{entracolor}{\\textbf{Variable que entra:}} $%s$\n", var_entra_latex);
+        g_string_append_printf(latex, "\\item \\textcolor{salecolor}{\\textbf{Variable que sale:}} $%s$\n", var_sale_latex);
+        
+        char pivote_buffer[32];
+        formatear_numero(info_pivote->valor_pivote, pivote_buffer, sizeof(pivote_buffer)); // Usar número normal
+        g_string_append_printf(latex, "\\item \\textcolor{pivotecolor}{\\textbf{Elemento pivote:}} $%s$\n", pivote_buffer);
+        g_string_append_printf(latex, "\\item \\textbf{Posición:} Fila %d, Columna %d\n", 
+                              info_pivote->fila_pivote, info_pivote->columna_pivote + 1);
+        
+        g_string_append(latex, "\\end{itemize}\n");
+    }
+    
+    g_string_append(latex, "\n");
     g_string_append(latex, "\\begin{center}\n");
     g_string_append(latex, "\\small\n");
     g_string_append(latex, "\\begin{tabular}{|c|");
@@ -333,7 +504,12 @@ void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo
     for (int j = 0; j < tabla->columnas - 1; j++) {
         char var_escape[64];
         formatear_nombre_variable_tabla(tabla->nombres_vars[j], var_escape, sizeof(var_escape));
-        g_string_append_printf(latex, "\\textbf{%s}", var_escape);
+        
+        if (info_pivote && j == info_pivote->columna_pivote) {
+            g_string_append_printf(latex, "\\cellcolor{entracolor}\\textbf{%s}", var_escape);
+        } else {
+            g_string_append_printf(latex, "\\textbf{%s}", var_escape);
+        }
         
         if (j < tabla->columnas - 2) {
             g_string_append(latex, " & ");
@@ -341,10 +517,19 @@ void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo
     }
     g_string_append(latex, " & \\textbf{b} \\\\\n");
     g_string_append(latex, "\\hline\n");
+    
+    // Fila Z
     g_string_append(latex, "Z & ");
     for (int j = 0; j < tabla->columnas; j++) {
         double valor = tabla->tabla[0][j];
         char num_buffer[32];
+        gboolean es_pivote = (info_pivote && 0 == info_pivote->fila_pivote && j == info_pivote->columna_pivote);
+        gboolean es_columna_entra = (info_pivote && j == info_pivote->columna_pivote);
+        if (es_pivote) {
+            g_string_append(latex, "\\cellcolor{pivotecolor}");
+        } else if (es_columna_entra) {
+            g_string_append(latex, "\\cellcolor{entracolor}");
+        }
         
         if (fabs(valor) > M_GRANDE/10) {
             double coef_m = valor / M_GRANDE;
@@ -377,11 +562,27 @@ void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo
         int var_base = tabla->variables_base[i - 1];
         char var_base_escape[64];
         formatear_nombre_variable_tabla(tabla->nombres_vars[var_base], var_base_escape, sizeof(var_base_escape));
-        g_string_append_printf(latex, "%s & ", var_base_escape);
+        if (info_pivote && i == info_pivote->fila_pivote) {
+            g_string_append_printf(latex, "\\cellcolor{salecolor}%s & ", var_base_escape);
+        } else {
+            g_string_append_printf(latex, "%s & ", var_base_escape);
+        }
         
         for (int j = 0; j < tabla->columnas; j++) {
             double valor = tabla->tabla[i][j];
             char num_buffer[32];
+            
+            gboolean es_pivote = (info_pivote && i == info_pivote->fila_pivote && j == info_pivote->columna_pivote);
+            gboolean es_columna_entra = (info_pivote && j == info_pivote->columna_pivote);
+            gboolean es_fila_sale = (info_pivote && i == info_pivote->fila_pivote);
+            
+            if (es_pivote) {
+                g_string_append(latex, "\\cellcolor{pivotecolor}");
+            } else if (es_columna_entra) {
+                g_string_append(latex, "\\cellcolor{entracolor}");
+            } else if (es_fila_sale) {
+                g_string_append(latex, "\\cellcolor{salecolor}");
+            }
             
             if (fabs(valor) < EPSILON) {
                 g_string_append(latex, "0");
@@ -397,13 +598,22 @@ void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo
         g_string_append(latex, " \\\\\n");
         g_string_append(latex, "\\hline\n");
     }
-    
     g_string_append(latex, "\\end{tabular}\n");
     g_string_append(latex, "\\end{center}\n\n");
+    if (info_pivote) {
+        g_string_append(latex, "\\vspace{0.2cm}\n");
+        g_string_append(latex, "\\textbf{Significado de colores:}\n");
+        g_string_append(latex, "\\begin{itemize}\\small\n");
+        g_string_append(latex, "\\item \\textcolor{entracolor}{\\blacksquare} Variable que entra\n");
+        g_string_append(latex, "\\item \\textcolor{salecolor}{\\blacksquare} Variable que sale\n");
+        g_string_append(latex, "\\item \\textcolor{pivotecolor}{\\blacksquare} Elemento pivote\n");
+        g_string_append(latex, "\\end{itemize}\n");
+    }
     
     if (es_final) {
         double *solucion = g_new0(double, tabla->num_vars_decision);
         extraer_solucion(tabla, solucion);
+        
         g_string_append(latex, "\\textbf{Solución:}\n");
         g_string_append(latex, "\\begin{align*}\n");
         for (int i = 0; i < tabla->num_vars_decision; i++) {
@@ -422,9 +632,9 @@ void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo
     }
 }
 
-// Función para generar la tabla inicial
+// Generar tabla inicial
 void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaInfo *info) {
-    generar_tabla_latex(latex, tabla, "Tabla Inicial del Método Simplex", -1, FALSE);
+    generar_tabla_latex(latex, tabla, "Tabla Inicial del Método Simplex", -1, FALSE, NULL);
     if (tabla->num_vars_artificiales > 0) {
         g_string_append(latex, "\\textbf{Nota:} Se utilizó el método de la Gran M con ");
         g_string_append_printf(latex, "$M = %.0f$\\\\\n", M_GRANDE);
@@ -444,20 +654,36 @@ void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaIn
     }
 }
 
-// Función para generar tablas intermedias
-void generar_tablas_intermedias_latex(GString *latex, TablaSimplex **tablas, int num_tablas, ProblemaInfo *info, ResultadoSimplex *resultado) {
+// Función para generar tablas intermedias 
+void generar_tablas_intermedias_latex(GString *latex, TablaSimplex **tablas, int num_tablas, 
+                                     ProblemaInfo *info, ResultadoSimplex *resultado) {
     if (!tablas || num_tablas <= 1) return;
     g_string_append(latex, "\\section{Iteraciones del Método Simplex}\n\n");
     for (int i = 1; i < num_tablas - 1; i++) {
-        generar_tabla_latex(latex, tablas[i], "Tabla Intermedia", i, FALSE);
+        InfoPivote *info_pivote = calcular_info_pivote(tablas[i-1], tablas[i]);
+        if (info_pivote) {
+            InfoPivote info_con_calculos = *info_pivote;
+            generar_tabla_latex(latex, tablas[i-1], "Tabla Intermedia", i, FALSE, &info_con_calculos);
+        } else {
+            generar_tabla_latex(latex, tablas[i], "Tabla Intermedia", i, FALSE, NULL);
+        }
+        
+        if (info_pivote) {
+            g_free(info_pivote->variable_entra);
+            g_free(info_pivote->variable_sale);
+            g_free(info_pivote->razones);
+            g_free(info_pivote->filas_empate);
+            g_free(info_pivote);
+        }
     }
 }
-
 // Función para generar la tabla final
 void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
     if (!resultado || !resultado->tablas_intermedias || resultado->num_tablas == 0) return;
+    
     TablaSimplex *tabla_final = resultado->tablas_intermedias[resultado->num_tablas - 1];
-    generar_tabla_latex(latex, tabla_final, "Tabla Final - Solución Óptima", -1, TRUE);
+    generar_tabla_latex(latex, tabla_final, "Tabla Final - Solución Óptima", -1, TRUE, NULL);
+    
     switch (resultado->tipo_solucion) {
         case SOLUCION_OPTIMA:
             if (resultado->es_degenerado) {
@@ -490,7 +716,7 @@ void generar_solucion_multiple_latex(GString *latex, ResultadoSimplex *resultado
     
     if (resultado->segunda_tabla) {
         g_string_append(latex, "\\subsection{Segunda Tabla Óptima}\n\n");
-        generar_tabla_latex(latex, resultado->segunda_tabla, "Segunda Solución Básica Óptima", -1, TRUE);
+        generar_tabla_latex(latex, resultado->segunda_tabla, "Segunda Solución Básica Óptima", -1, TRUE, NULL);
     }
     
     g_string_append(latex, "\\subsection{Explicación de Soluciones Múltiples}\n\n");
@@ -504,15 +730,23 @@ void generar_solucion_multiple_latex(GString *latex, ResultadoSimplex *resultado
     
     if (resultado->soluciones_adicionales && resultado->num_soluciones_adicionales > 0) {
         g_string_append(latex, "\\subsection{Soluciones Adicionales}\n\n");
-        g_string_append(latex, "A continuación se presentan soluciones adicionales obtenidas como combinaciones convexas:\n\n");
+        g_string_append(latex, "A continuación se presentan soluciones adicionales obtenidas como combinaciones convexas de las dos soluciones básicas óptimas:\n\n");
         
-        for (int k = 0; k < resultado->num_soluciones_adicionales; k++) {
-            g_string_append_printf(latex, "\\subsubsection{Solución %d}\n", k + 1);
+        double *sol1 = g_new0(double, info->num_vars);
+        double *sol2 = g_new0(double, info->num_vars);
+        extraer_solucion(resultado->tablas_intermedias[resultado->num_tablas - 1], sol1);
+        extraer_solucion(resultado->segunda_tabla, sol2);
+        
+        for (int k = 0; k < 3; k++) {
+            double lambda = (k + 1) * 0.25; 
+            
+            g_string_append_printf(latex, "\\subsubsection{Solución con $\\lambda = %.2f$}\n", lambda);
             g_string_append(latex, "\\begin{align*}\n");
             
             for (int i = 0; i < info->num_vars; i++) {
+                double valor_solucion = lambda * sol1[i] + (1.0 - lambda) * sol2[i];
                 char sol_buffer[32];
-                formatear_numero(resultado->soluciones_adicionales[k][i], sol_buffer, sizeof(sol_buffer));
+                formatear_numero(valor_solucion, sol_buffer, sizeof(sol_buffer));
                 char var_latex[64];
                 formatear_nombre_variable_latex(info->nombres_vars[i], var_latex, sizeof(var_latex));
                 
@@ -522,17 +756,22 @@ void generar_solucion_multiple_latex(GString *latex, ResultadoSimplex *resultado
                 }
             }
             g_string_append(latex, "\n\\end{align*}\n\n");
-            double z_adicional = 0.0;
+            
+            double z_calculado = 0.0;
             for (int i = 0; i < info->num_vars; i++) {
-                z_adicional += info->coef_obj[i] * resultado->soluciones_adicionales[k][i];
+                double valor_solucion = lambda * sol1[i] + (1.0 - lambda) * sol2[i];
+                z_calculado += info->coef_obj[i] * valor_solucion;
             }
+            
             char z_buffer[32];
-            formatear_numero(z_adicional, z_buffer, sizeof(z_buffer));
+            formatear_numero(z_calculado, z_buffer, sizeof(z_buffer));
             g_string_append_printf(latex, "\\textbf{Valor de Z:} $%s$ (mismo valor óptimo)\\\\\n\n", z_buffer);
         }
+        
+        g_free(sol1);
+        g_free(sol2);
     }
 }
-
 
 // Función para generar explicación de problemas especiales
 static void generar_explicacion_problemas_especiales_latex(GString *latex, ResultadoSimplex *resultado) {
@@ -679,11 +918,11 @@ void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info, co
     }
     
     g_string_append(latex, "\\section{Resultados}\n\n");
-    g_string_append(latex, "\\subsection{Solución Encontrada}\n\n");
+    g_string_append(latex, "\\subsection{Solución Encontrada}\n\n"); 
     if (resultado->tipo_solucion == SOLUCION_OPTIMA || resultado->tipo_solucion == SOLUCION_MULTIPLE) {
         g_string_append_printf(latex, "\\textbf{Valor óptimo de Z:} $\\mathbf{%.2f}$\\\\\n\n", resultado->valor_z);
-        
-        g_string_append(latex, "\\textbf{Valores de las variables de decisión:}\\\\\n");
+        TablaSimplex *tabla_final = resultado->tablas_intermedias[resultado->num_tablas - 1];
+        g_string_append(latex, "\\textbf{Valores de todas las variables:}\\\\\n");
         g_string_append(latex, "\\begin{align*}\n");
         for (int i = 0; i < info->num_vars; i++) {
             char var_latex[64];
@@ -695,6 +934,58 @@ void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info, co
                 g_string_append(latex, " \\\\\n");
             }
         }
+        
+        // Mostrar variables de holgura
+        for (int i = info->num_vars; i < info->num_vars + tabla_final->num_vars_holgura; i++) {
+            char var_latex[64];
+            formatear_nombre_variable_latex(tabla_final->nombres_vars[i], var_latex, sizeof(var_latex));
+            double valor = 0.0;
+            for (int j = 0; j < tabla_final->num_restricciones; j++) {
+                if (tabla_final->variables_base[j] == i) {
+                    valor = tabla_final->tabla[j + 1][tabla_final->columnas - 1]; 
+                    break;
+                }
+            }
+            
+            char num_buffer[32];
+            formatear_numero(valor, num_buffer, sizeof(num_buffer));
+            g_string_append_printf(latex, " \\\\\n%s &= %s", var_latex, num_buffer);
+        }
+        
+        for (int i = info->num_vars + tabla_final->num_vars_holgura; 
+            i < info->num_vars + tabla_final->num_vars_holgura + tabla_final->num_vars_exceso; i++) {
+            char var_latex[64];
+            formatear_nombre_variable_latex(tabla_final->nombres_vars[i], var_latex, sizeof(var_latex));
+            double valor = 0.0;
+            for (int j = 0; j < tabla_final->num_restricciones; j++) {
+                if (tabla_final->variables_base[j] == i) {
+                    valor = tabla_final->tabla[j + 1][tabla_final->columnas - 1]; 
+                    break;
+                }
+            }
+            
+            char num_buffer[32];
+            formatear_numero(valor, num_buffer, sizeof(num_buffer));
+            g_string_append_printf(latex, " \\\\\n%s &= %s", var_latex, num_buffer);
+        }
+        
+        for (int i = info->num_vars + tabla_final->num_vars_holgura + tabla_final->num_vars_exceso;
+            i < info->num_vars + tabla_final->num_vars_holgura + tabla_final->num_vars_exceso + tabla_final->num_vars_artificiales; i++) {
+            char var_latex[64];
+            formatear_nombre_variable_latex(tabla_final->nombres_vars[i], var_latex, sizeof(var_latex));
+            double valor = 0.0;
+            for (int j = 0; j < tabla_final->num_restricciones; j++) {
+                if (tabla_final->variables_base[j] == i) {
+                    valor = tabla_final->tabla[j + 1][tabla_final->columnas - 1]; 
+                    break;
+                }
+            }
+            
+            char num_buffer[32];
+            formatear_numero(valor, num_buffer, sizeof(num_buffer));
+            g_string_append_printf(latex, " \\\\\n%s &= %s", var_latex, num_buffer);
+        }
+        
         g_string_append(latex, "\n\\end{align*}\n\n");
     }
     
