@@ -1,0 +1,272 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\definecolor{basecolor}{RGB}{0,128,0}
+\definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{MinimizacionMultiples}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre II: 2025
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\begin{center}
+\textbf{George Dantzig (1914-2005)}
+\\
+Creador del Método Simplex
+\end{center}
+\vfill
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\
+
+Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal. Usa operaciones sobre matrices hasta encontrar la solución óptima o determinar que el problema no tiene solución. Parte de un vértice de la región factible y "salta" a vértices adyacentes que mejoren lo encontrado hasta encontrar la condición de salida.
+
+\subsection{Método de la Gran M}
+El método de la Gran M se utiliza cuando el problema tiene restricciones de tipo $\geq$ o $=$ que requieren variables artificiales. Se asigna un coeficiente $M$ muy grande en la función objetivo para las variables artificiales, donde:
+\begin{itemize}
+\item Para \textbf{maximización}: $M$ es negativo grande ($-M$)
+\item Para \textbf{minimización}: $M$ es positivo grande ($+M$)
+\item El valor de $M$ utilizado es: $1000000$
+\end{itemize}
+Esto fuerza a las variables artificiales a salir de la base en la solución óptima.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos
+\item \textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteración
+\end{itemize}
+
+\section{Formulación del Problema}
+
+\textbf{Problema:} MinimizacionMultiples\\
+\textbf{Tipo:} Minimización\\
+\textbf{Número de variables:} 2\\
+\textbf{Número de restricciones:} 2
+
+\subsection{Función Objetivo}
+\[
+Minimizar Z = --2x_{1} - -2x_{2}
+\]
+
+\subsection{Restricciones}
+\[
+\begin{cases}
+x_{1} + x_{2} = 4 \\
+x_{1} + 2x_{2} \leq 6
+\end{cases}
+\]
+
+\subsection{Restricciones de No Negatividad}
+\[
+x_{1} \geq 0, \quad x_{2} \geq 0
+\]
+
+\section{Método de Solución}
+
+Se utilizó el \textbf{método de la Gran M} debido a la presencia de restricciones de tipo $\geq$ o $=$.
+
+\begin{itemize}
+\item Valor de M utilizado: $\mathbf{1000000}$
+\item Se introdujeron variables artificiales para las restricciones relevantes
+\item El método garantiza encontrar una solución factible si existe
+\end{itemize}
+
+\subsection{Tabla Inicial del Método Simplex}
+
+\textbf{Variables básicas:} $a_{1}$, $s_{1}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$a_{1}$} & \textbf{b} \\
+\hline
+Z & 1,0M & 1,0M & 0 & 2M & 4M \\
+\hline
+$a_{1}$ & 1 & 1 & 0 & 1 & 4 \\
+\hline
+$s_{1}$ & 1 & 2 & 1 & 0 & 6 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Nota:} Se utilizó el método de la Gran M con $M = 1000000$\\
+\textbf{Variables artificiales:} $a_{1}$\\
+
+\section{Iteraciones del Método Simplex}
+
+\subsection{Tabla Intermedia}
+
+\textbf{Iteración:} 1\\
+\textbf{Variables básicas:} $a_{1}$, $s_{1}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$a_{1}$} & \textbf{b} \\
+\hline
+Z & 1,0M & 1,0M & 0 & 2M & 4M \\
+\hline
+$a_{1}$ & 1 & 1 & 0 & 1 & 4 \\
+\hline
+$s_{1}$ & 1 & 2 & 1 & 0 & 6 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Tabla Final - Solución Óptima}
+
+\textbf{Variables básicas:} $x_{1}$, $s_{1}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$a_{1}$} & \textbf{b} \\
+\hline
+Z & 0 & 0 & 0 & 1,0M & 8 \\
+\hline
+$x_{1}$ & 1 & 1 & 0 & 1 & 4 \\
+\hline
+$s_{1}$ & 0 & 1 & 1 & -1 & 2 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Solución:}
+\begin{align*}
+x_{1} &= 4 \\
+x_{2} &= 0
+\end{align*}
+
+\textbf{Solución Múltiple:} Existen infinitas soluciones óptimas.\\
+
+\section{Resultados}
+
+\subsection{Solución Encontrada}
+
+\textbf{Valor óptimo de Z:} $\mathbf{8,00}$\\
+
+\textbf{Valores de las variables de decisión:}\\
+\begin{align*}
+x_{1} &= 4 \\
+x_{2} &= 0
+\end{align*}
+
+\section{Solución Múltiple}
+
+El problema tiene infinitas soluciones óptimas.\\
+\subsection{Segunda Tabla Óptima}
+
+\subsection{Segunda Solución Básica Óptima}
+
+\textbf{Variables básicas:} $x_{1}$, $s_{1}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$a_{1}$} & \textbf{b} \\
+\hline
+Z & 0 & 0 & 0 & 1,0M & 8 \\
+\hline
+$x_{1}$ & 1 & 1 & 0 & 1 & 4 \\
+\hline
+$s_{1}$ & 0 & 1 & 1 & -1 & 2 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Solución:}
+\begin{align*}
+x_{1} &= 4 \\
+x_{2} &= 0
+\end{align*}
+
+\subsection{Explicación de Soluciones Múltiples}
+
+Cuando un problema de programación lineal tiene soluciones múltiples, significa que existe más de una combinación de valores para las variables de decisión que produce el mismo valor óptimo de la función objetivo.
+
+\textbf{Condición para soluciones múltiples:}
+\begin{itemize}
+\item Al menos una variable no básica tiene coeficiente cero en la fila Z de la tabla óptima
+\item Esto indica que podemos introducir esa variable en la base sin cambiar el valor de Z
+\item El conjunto de soluciones óptimas forma un segmento de recta (en 2D) o un hiperplano (en nD)
+\end{itemize}
+
+\subsection{Soluciones Adicionales}
+
+A continuación se presentan soluciones adicionales obtenidas como combinaciones convexas:
+
+\subsubsection{Solución 1}
+\begin{align*}
+x_{1} &= 2.80 \\
+x_{2} &= 0
+\end{align*}
+
+\textbf{Valor de Z:} $-5.60$ (mismo valor óptimo)\\
+
+\subsubsection{Solución 2}
+\begin{align*}
+x_{1} &= 4 \\
+x_{2} &= 0
+\end{align*}
+
+\textbf{Valor de Z:} $-8$ (mismo valor óptimo)\\
+
+\subsubsection{Solución 3}
+\begin{align*}
+x_{1} &= 5.20 \\
+x_{2} &= 0
+\end{align*}
+
+\textbf{Valor de Z:} $-10.40$ (mismo valor óptimo)\\
+
+\section{Conclusión}
+
+El problema tiene \textbf{múltiples soluciones óptimas}.\\
+El valor óptimo de la función objetivo es: \textbf{Z = 8,00}\\
+Existen infinitos puntos que alcanzan este valor óptimo.\\
+\textbf{Mensaje:} Solución óptima múltiple encontrada\\
+
+\textbf{Recomendaciones:}
+\begin{itemize}
+\item Se pueden elegir diferentes soluciones según criterios adicionales.
+\item Considere factores externos para seleccionar la solución más apropiada.
+\end{itemize}
+
+\end{document}

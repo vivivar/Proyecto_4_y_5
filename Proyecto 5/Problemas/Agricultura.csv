@@ -1,0 +1,9 @@
+NAME,Agricultura
+TYPE,MAX
+N,2
+VARS,X1,X2
+M,3
+Z,10000,3000
+R,1,1,<=,7
+R,10,4,<=,40
+R,0,1,>=,3

@@ -1,161 +1,288 @@
 #include "simplex.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 #include <string.h>
-#include <stdlib.h> 
-#include <time.h>   
 
+#define M_GRANDE 1.0e6
+#define EPSILON 1.0e-10
+#define MAX_ITERACIONES 1000
+
+// Función auxiliar para copiar una tabla
+static TablaSimplex* copiar_tabla(TablaSimplex *original) {
+    if (!original) return NULL;
+    
+    TablaSimplex *copia = g_new0(TablaSimplex, 1);
+    
+    copia->filas = original->filas;
+    copia->columnas = original->columnas;
+    copia->num_vars_decision = original->num_vars_decision;
+    copia->num_restricciones = original->num_restricciones;
+    copia->num_vars_holgura = original->num_vars_holgura;
+    copia->num_vars_exceso = original->num_vars_exceso;
+    copia->num_vars_artificiales = original->num_vars_artificiales;
+    copia->tipo = original->tipo;
+    
+    if (original->tabla) {
+        copia->tabla = g_new0(double*, copia->filas);
+        for (int i = 0; i < copia->filas; i++) {
+            copia->tabla[i] = g_new0(double, copia->columnas);
+            for (int j = 0; j < copia->columnas; j++) {
+                copia->tabla[i][j] = original->tabla[i][j];
+            }
+        }
+    }
+    
+    if (original->variables_base) {
+        copia->variables_base = g_new0(int, copia->num_restricciones);
+        for (int i = 0; i < copia->num_restricciones; i++) {
+            copia->variables_base[i] = original->variables_base[i];
+        }
+    }
+    
+    if (original->nombres_vars) {
+        int total_vars = copia->num_vars_decision + copia->num_vars_holgura + 
+                        copia->num_vars_exceso + copia->num_vars_artificiales;
+        copia->nombres_vars = g_new0(char*, total_vars);
+        copia->es_artificial = g_new0(int, total_vars);
+        
+        for (int i = 0; i < total_vars; i++) {
+            if (original->nombres_vars[i]) {
+                copia->nombres_vars[i] = g_strdup(original->nombres_vars[i]);
+            }
+            copia->es_artificial[i] = original->es_artificial[i];
+        }
+    }
+    
+    return copia;
+}
+
+// Función para crear la tabla simplex
 TablaSimplex* crear_tabla_simplex(int num_vars, int num_rest, TipoProblema tipo) {
     TablaSimplex *tabla = g_new0(TablaSimplex, 1);
-    tabla->num_vars = num_vars;
-    tabla->num_rest = num_rest;
+    tabla->num_vars_decision = num_vars;
+    tabla->num_restricciones = num_rest;
     tabla->tipo = tipo;
     
-    tabla->tabla = g_new0(double*, num_rest + 1);
-    for (int i = 0; i <= num_rest; i++) {
-        tabla->tabla[i] = g_new0(double, num_vars + num_rest + 1);
-    }
-    
-    tabla->variables_basicas = g_new0(int, num_rest);
-    for (int i = 0; i < num_rest; i++) {
-        tabla->variables_basicas[i] = num_vars + i;
-    }
+    tabla->tipos_restricciones = g_new0(TipoRestriccion, num_rest);
+    tabla->lados_derechos = g_new0(double, num_rest);
     
     return tabla;
 }
 
-int contar_variables_cero(TablaSimplex *tabla) {
-    int count = 0;
-    for (int i = 0; i < tabla->num_rest; i++) {
-        double valor = tabla->tabla[i + 1][tabla->num_vars + tabla->num_rest];
-        if (fabs(valor) < EPSILON) {
-            count++;
-        }
+void establecer_funcion_objetivo(TablaSimplex *tabla, double *coeficientes) {
+    tabla->c = g_new0(double, tabla->num_vars_decision);
+    for (int i = 0; i < tabla->num_vars_decision; i++) {
+        tabla->c[i] = coeficientes[i];
     }
-    return count;
 }
 
-void liberar_tabla_simplex(TablaSimplex *tabla) {
-    if (!tabla) return;
-    
-    if (tabla->tabla) {
-        for (int i = 0; i <= tabla->num_rest; i++) {
-            g_free(tabla->tabla[i]);
-        }
-        g_free(tabla->tabla);
+void agregar_restriccion(TablaSimplex *tabla, int indice_rest, double *coeficientes, 
+                        double lado_derecho, TipoRestriccion tipo) {
+    if (!tabla->A) {
+        tabla->A = g_new0(double*, tabla->num_restricciones);
     }
     
-    if (tabla->variables_basicas) {
-        g_free(tabla->variables_basicas);
+    tabla->A[indice_rest] = g_new0(double, tabla->num_vars_decision);
+    for (int i = 0; i < tabla->num_vars_decision; i++) {
+        tabla->A[indice_rest][i] = coeficientes[i];
     }
     
-    g_free(tabla);
+    tabla->lados_derechos[indice_rest] = lado_derecho;
+    tabla->tipos_restricciones[indice_rest] = tipo;
 }
 
-void establecer_funcion_objetivo_simplex(TablaSimplex *tabla, double coeficientes[]) {
-    for (int j = 0; j < tabla->num_vars; j++) {
-        tabla->tabla[0][j] = -coeficientes[j];
-    }
-    tabla->tabla[0][tabla->num_vars + tabla->num_rest] = 0.0;
-}
-
-void agregar_restriccion_simplex(TablaSimplex *tabla, int indice, double coeficientes[], double lado_derecho) {
-    if (indice < 0 || indice >= tabla->num_rest) return;
-    int fila = indice + 1;
+static void preparar_tabla_simplex(TablaSimplex *tabla) {
+    tabla->num_vars_holgura = 0;
+    tabla->num_vars_exceso = 0;
+    tabla->num_vars_artificiales = 0;
     
-    for (int j = 0; j < tabla->num_vars; j++) {
-        tabla->tabla[fila][j] = coeficientes[j];
-    }
-    
-    tabla->tabla[fila][tabla->num_vars + indice] = 1.0;
-    tabla->tabla[fila][tabla->num_vars + tabla->num_rest] = lado_derecho;
-}
-
-bool es_optima(TablaSimplex *tabla) {
-    if (tabla->tipo == MAXIMIZACION) {
-        for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
-            if (tabla->tabla[0][j] < -EPSILON) {
-                return false;
-            }
-        }
-    } else {
-        for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
-            if (tabla->tabla[0][j] > EPSILON) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-int encontrar_columna_pivote(TablaSimplex *tabla) {
-    int col_pivote = -1;
-    
-    if (tabla->tipo == MAXIMIZACION) {
-        double min_valor = 0.0;
-        for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++)  {
-            if (tabla->tabla[0][j] < min_valor - EPSILON) {
-                min_valor = tabla->tabla[0][j];
-                col_pivote = j;
-            }
-        }
-        if (col_pivote != -1) {
-        } else {
-        }
-    } else {
-        double max_valor = 0.0;
-        for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++)  {
-            if (tabla->tabla[0][j] > max_valor + EPSILON) {
-                max_valor = tabla->tabla[0][j];
-                col_pivote = j;
-            }
-        }
-        if (col_pivote != -1) {
-        } else {
+    for (int i = 0; i < tabla->num_restricciones; i++) {
+        switch (tabla->tipos_restricciones[i]) {
+            case RESTRICCION_LE:
+                tabla->num_vars_holgura++;
+                break;
+            case RESTRICCION_GE:
+                tabla->num_vars_exceso++;
+                tabla->num_vars_artificiales++;
+                break;
+            case RESTRICCION_EQ:
+                tabla->num_vars_artificiales++;
+                break;
         }
     }
     
-    return col_pivote;
-}
-
-int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote, int **filas_empatadas, int *num_empates) {
-    if (col_pivote == -1) return -1;
+    int total_vars = tabla->num_vars_decision + tabla->num_vars_holgura + 
+                    tabla->num_vars_exceso + tabla->num_vars_artificiales;
     
-    int fila_pivote = -1;
-    double min_ratio = 1e9;
-    int empates[tabla->num_rest]; 
-    *num_empates = 0;
-    bool hubo_empate = false;
+    tabla->filas = tabla->num_restricciones + 1;
+    tabla->columnas = total_vars + 1; 
     
-    if (filas_empatadas) *filas_empatadas = NULL;
-    
-    for (int i = 1; i <= tabla->num_rest; i++) {
-        if (tabla->tabla[i][col_pivote] > EPSILON) {
-            double ratio = tabla->tabla[i][tabla->num_vars + tabla->num_rest] / 
-                          tabla->tabla[i][col_pivote];
-            
-            if (ratio >= 0) {
-                if (fabs(ratio - min_ratio) < EPSILON) {
-                    empates[*num_empates] = i - 1;
-                    (*num_empates)++;
-                    hubo_empate = true;
-                } else if (ratio < min_ratio - EPSILON || fila_pivote == -1) {
-                    min_ratio = ratio;
-                    fila_pivote = i - 1;
-                    *num_empates = 1; 
-                    empates[0] = i - 1;
-                    hubo_empate = false;
-                }
-            }
-        }
+    tabla->tabla = g_new0(double*, tabla->filas);
+    for (int i = 0; i < tabla->filas; i++) {
+        tabla->tabla[i] = g_new0(double, tabla->columnas);
     }
     
-    if (*num_empates > 1) {
-        int indice_aleatorio = rand() % (*num_empates);
-        fila_pivote = empates[indice_aleatorio];
+    tabla->nombres_vars = g_new0(char*, total_vars);
+    tabla->es_artificial = g_new0(int, total_vars);
+    
+    for (int i = 0; i < tabla->num_vars_decision; i++) {
+        tabla->nombres_vars[i] = g_strdup_printf("x%d", i + 1);
+        tabla->es_artificial[i] = 0;
+    }
+    
+    int idx = tabla->num_vars_decision;
+    
+    for (int i = 0; i < tabla->num_vars_holgura; i++) {
+        tabla->nombres_vars[idx] = g_strdup_printf("s%d", i + 1);
+        tabla->es_artificial[idx] = 0;
+        idx++;
+    }
+    
+    for (int i = 0; i < tabla->num_vars_exceso; i++) {
+        tabla->nombres_vars[idx] = g_strdup_printf("e%d", i + 1);
+        tabla->es_artificial[idx] = 0;
+        idx++;
+    }
+    
+    for (int i = 0; i < tabla->num_vars_artificiales; i++) {
+        tabla->nombres_vars[idx] = g_strdup_printf("a%d", i + 1);
+        tabla->es_artificial[idx] = 1;
+        idx++;
+    }
+    
+    for (int j = 0; j < tabla->num_vars_decision; j++) {
+        tabla->tabla[0][j] = (tabla->tipo == MAXIMIZACION) ? -tabla->c[j] : tabla->c[j];
+    }
+    
+    for (int j = tabla->num_vars_decision + tabla->num_vars_holgura + tabla->num_vars_exceso; 
+         j < total_vars; j++) {
+        tabla->tabla[0][j] = (tabla->tipo == MAXIMIZACION) ? -M_GRANDE : M_GRANDE;
+    }
+    
+    tabla->variables_base = g_new0(int, tabla->num_restricciones);
+    int cont_holgura = 0, cont_exceso = 0, cont_artificial = 0;
+    
+    for (int i = 0; i < tabla->num_restricciones; i++) {
+        int fila = i + 1;
         
-        if (filas_empatadas) {
-            *filas_empatadas = g_new(int, *num_empates);
-            for (int i = 0; i < *num_empates; i++) {
-                (*filas_empatadas)[i] = empates[i];
+        for (int j = 0; j < tabla->num_vars_decision; j++) {
+            tabla->tabla[fila][j] = tabla->A[i][j];
+        }
+        
+        TipoRestriccion tipo = tabla->tipos_restricciones[i];
+        
+        if (tipo == RESTRICCION_LE) {
+            int pos_holgura = tabla->num_vars_decision + cont_holgura;
+            tabla->tabla[fila][pos_holgura] = 1.0;
+            tabla->variables_base[i] = pos_holgura;
+            cont_holgura++;
+            
+        } else if (tipo == RESTRICCION_GE) {
+            int pos_exceso = tabla->num_vars_decision + tabla->num_vars_holgura + cont_exceso;
+            int pos_artificial = tabla->num_vars_decision + tabla->num_vars_holgura + 
+                                tabla->num_vars_exceso + cont_artificial;
+            
+            tabla->tabla[fila][pos_exceso] = -1.0;
+            tabla->tabla[fila][pos_artificial] = 1.0;
+            tabla->variables_base[i] = pos_artificial;
+            
+            cont_exceso++;
+            cont_artificial++;
+            
+        } else { 
+            int pos_artificial = tabla->num_vars_decision + tabla->num_vars_holgura + 
+                                tabla->num_vars_exceso + cont_artificial;
+            
+            tabla->tabla[fila][pos_artificial] = 1.0;
+            tabla->variables_base[i] = pos_artificial;
+            cont_artificial++;
+        }
+        
+        tabla->tabla[fila][total_vars] = tabla->lados_derechos[i];
+    }
+    
+    for (int i = 0; i < tabla->num_restricciones; i++) {
+        if (tabla->es_artificial[tabla->variables_base[i]]) {
+            int var_base = tabla->variables_base[i];
+            double factor = (tabla->tipo == MAXIMIZACION) ? M_GRANDE : -M_GRANDE;
+            
+            for (int j = 0; j <= total_vars; j++) {
+                tabla->tabla[0][j] -= factor * tabla->tabla[i + 1][j];
+            }
+        }
+    }
+}
+
+// Encontrar columna pivote según el tipo de problema
+static int encontrar_columna_pivote(TablaSimplex *tabla) {
+    if (tabla->tipo == MAXIMIZACION) {
+        double min_val = 0.0;
+        int col_pivote = -1;
+        
+        for (int j = 0; j < tabla->columnas - 1; j++) {
+            if (tabla->es_artificial[j]) {
+                continue;
+            }
+            
+            if (tabla->tabla[0][j] < min_val - EPSILON) {
+                min_val = tabla->tabla[0][j];
+                col_pivote = j;
+            }
+        }
+        
+        return col_pivote;
+    } else {
+        double max_val = 0.0;
+        int col_pivote = -1;
+        
+        for (int j = 0; j < tabla->columnas - 1; j++) {
+            if (tabla->es_artificial[j]) {
+                continue;
+            }
+            
+            if (tabla->tabla[0][j] > max_val + EPSILON) {
+                max_val = tabla->tabla[0][j];
+                col_pivote = j;
+            }
+        }
+        
+        if (max_val <= EPSILON) {
+            return -1;
+        }
+        
+        return col_pivote;
+    }
+}
+
+// Encontrar fila pivote con detección de degeneración
+static int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote, gboolean *es_degenerado) {
+    double min_ratio = 1e15;
+    int fila_pivote = -1;
+    int cont_ceros = 0;
+    
+    for (int i = 1; i < tabla->filas; i++) {
+        if (tabla->tabla[i][col_pivote] > EPSILON) {
+            double ratio = tabla->tabla[i][tabla->columnas - 1] / tabla->tabla[i][col_pivote];
+            
+            if (fabs(ratio) < EPSILON) {
+                cont_ceros++;
+            }
+            
+            if (ratio >= -EPSILON && ratio < min_ratio - EPSILON) {
+                min_ratio = ratio;
+                fila_pivote = i;
+            }
+        }
+    }
+    
+    if (es_degenerado) {
+        *es_degenerado = (cont_ceros > 0);
+        for (int i = 0; i < tabla->num_restricciones; i++) {
+            double valor_base = tabla->tabla[i + 1][tabla->columnas - 1];
+            if (fabs(valor_base) < EPSILON) {
+                *es_degenerado = TRUE;
+                break;
             }
         }
     }
@@ -163,478 +290,313 @@ int encontrar_fila_pivote(TablaSimplex *tabla, int col_pivote, int **filas_empat
     return fila_pivote;
 }
 
-void pivotear(TablaSimplex *tabla, int fila_pivote, int col_pivote) {
-    if (fila_pivote == -1 || col_pivote == -1) return;
-    
-    int fila_real = fila_pivote + 1;
-    double elemento_pivote = tabla->tabla[fila_real][col_pivote];
-    for (int j = 0; j <= tabla->num_vars + tabla->num_rest; j++) {
-        tabla->tabla[fila_real][j] /= elemento_pivote;
+// Realizar operación de pivote
+static void realizar_pivote(TablaSimplex *tabla, int fila_pivote, int col_pivote) {
+    double pivote = tabla->tabla[fila_pivote][col_pivote];
+    for (int j = 0; j < tabla->columnas; j++) {
+        tabla->tabla[fila_pivote][j] /= pivote;
     }
-    for (int i = 0; i <= tabla->num_rest; i++) {
-        if (i == fila_real) continue;
-        
-        double factor = tabla->tabla[i][col_pivote];
-        if (fabs(factor) > EPSILON) {
-            for (int j = 0; j <= tabla->num_vars + tabla->num_rest; j++) {
-                tabla->tabla[i][j] -= factor * tabla->tabla[fila_real][j];
+    
+    for (int i = 0; i < tabla->filas; i++) {
+        if (i != fila_pivote) {
+            double factor = tabla->tabla[i][col_pivote];
+            for (int j = 0; j < tabla->columnas; j++) {
+                tabla->tabla[i][j] -= factor * tabla->tabla[fila_pivote][j];
             }
         }
     }
-    tabla->variables_basicas[fila_pivote] = col_pivote;
+    tabla->variables_base[fila_pivote - 1] = col_pivote;
 }
 
-bool es_no_acotado(TablaSimplex *tabla, int col_pivote) {
-    if (col_pivote == -1) return false;
-    
-    for (int i = 1; i <= tabla->num_rest; i++) {
+// Verificar optimalidad según tipo de problema
+static int verificar_optimalidad(TablaSimplex *tabla) {
+    if (tabla->tipo == MAXIMIZACION) {
+        for (int j = 0; j < tabla->columnas - 1; j++) {
+            if (!tabla->es_artificial[j] && tabla->tabla[0][j] < -EPSILON) {
+                return 0; 
+            }
+        }
+    } else {
+        for (int j = 0; j < tabla->columnas - 1; j++) {
+            if (!tabla->es_artificial[j] && tabla->tabla[0][j] > EPSILON) {
+                return 0; 
+            }
+        }
+    }
+    return 1; 
+}
+
+// Verificar no acotamiento
+static int verificar_no_acotamiento(TablaSimplex *tabla, int col_pivote) {
+    if (col_pivote == -1) return 0;
+    int tiene_positivo = 0;
+    for (int i = 1; i < tabla->filas; i++) {
         if (tabla->tabla[i][col_pivote] > EPSILON) {
-            return false;
+            tiene_positivo = 1;
+            break;
         }
     }
-    return true;
+    
+    return !tiene_positivo;
 }
 
-bool es_solucion_multiple(TablaSimplex *tabla) {
-    for (int j = 0; j < tabla->num_vars; j++) {
-        bool es_basica = false;
-        for (int i = 0; i < tabla->num_rest; i++) {
-            if (tabla->variables_basicas[i] == j) {
-                es_basica = true;
-                break;
+// Verificar factibilidad
+static int verificar_factibilidad(TablaSimplex *tabla) {
+    for (int i = 0; i < tabla->num_restricciones; i++) {
+        if (tabla->es_artificial[tabla->variables_base[i]]) {
+            double valor = tabla->tabla[i + 1][tabla->columnas - 1];
+            if (fabs(valor) > EPSILON) {
+                return 0; 
             }
         }
-        if (!es_basica && fabs(tabla->tabla[0][j]) < EPSILON) {
-            return true;
-        }
     }
-    return false;
+    return 1; 
 }
 
-bool es_degenerado(TablaSimplex *tabla) {
-    bool degenerado = false;
-    int variables_cero = 0;
+// Verificar si hay solución múltiple
+static int verificar_solucion_multiple(TablaSimplex *tabla) {
+    int total_vars = tabla->num_vars_decision + tabla->num_vars_holgura + 
+                    tabla->num_vars_exceso + tabla->num_vars_artificiales;
     
-    for (int i = 0; i < tabla->num_rest; i++) {
-        double valor = tabla->tabla[i + 1][tabla->num_vars + tabla->num_rest];        
-        if (fabs(valor) < EPSILON) {
-            variables_cero++;
-            degenerado = true;
-        }
-    }
-    
-    return degenerado;
-}
-
-void extraer_solucion(TablaSimplex *tabla, double solucion[]) {
-    for (int j = 0; j < tabla->num_vars; j++) {
-        solucion[j] = 0.0;
-    }
-    
-    for (int i = 0; i < tabla->num_rest; i++) {
-        int var_index = tabla->variables_basicas[i];
-        if (var_index < tabla->num_vars) {
-            solucion[var_index] = tabla->tabla[i + 1][tabla->num_vars + tabla->num_rest];
-        }
-    }
-}
-
-int encontrar_variable_no_basica_con_cero(TablaSimplex *tabla) {
-    for (int j = 0; j < tabla->num_vars; j++) {
-        bool es_basica = false;
-        for (int i = 0; i < tabla->num_rest; i++) {
-            if (tabla->variables_basicas[i] == j) {
-                es_basica = true;
+    for (int j = 0; j < total_vars; j++) {
+        int es_variable_base = 0;
+        for (int i = 0; i < tabla->num_restricciones; i++) {
+            if (tabla->variables_base[i] == j) {
+                es_variable_base = 1;
                 break;
             }
         }
         
-        if (!es_basica && fabs(tabla->tabla[0][j]) < EPSILON) {
-            return j;
+        if (!es_variable_base && !tabla->es_artificial[j]) {
+            if (fabs(tabla->tabla[0][j]) < EPSILON) {
+                int puede_entrar = 0;
+                for (int i = 1; i < tabla->filas; i++) {
+                    if (tabla->tabla[i][j] > EPSILON) {
+                        puede_entrar = 1;
+                        break;
+                    }
+                }
+                
+                if (puede_entrar) {
+                    return 1; 
+                }
+            }
         }
     }
-    return -1;
+    return 0;
 }
-
-bool pivotear_para_segunda_solucion(TablaSimplex *tabla, int variable_cero) {
-    if (variable_cero == -1) return false;    
-    int fila_pivote = -1;
-    double min_ratio = 1e9;
+// Función para encontrar solución alternativa para múltiples soluciones
+static TablaSimplex* encontrar_solucion_alternativa(TablaSimplex *tabla_original) {
+    TablaSimplex *tabla = copiar_tabla(tabla_original);
+    int total_vars = tabla->num_vars_decision + tabla->num_vars_holgura + tabla->num_vars_exceso + tabla->num_vars_artificiales;
     
-    for (int i = 1; i <= tabla->num_rest; i++) {
-        if (tabla->tabla[i][variable_cero] > EPSILON) {
-            double ratio = tabla->tabla[i][tabla->num_vars + tabla->num_rest] / 
-                          tabla->tabla[i][variable_cero];
-            if (ratio >= 0 && (ratio < min_ratio - EPSILON || fila_pivote == -1)) {
-                min_ratio = ratio;
-                fila_pivote = i - 1;
+    for (int j = 0; j < total_vars; j++) {
+        if (!tabla->es_artificial[j] && fabs(tabla->tabla[0][j]) < EPSILON) {
+            int fila_pivote = -1;
+            double min_ratio = 1e15;
+            
+            for (int i = 1; i < tabla->filas; i++) {
+                if (tabla->tabla[i][j] > EPSILON) {
+                    double ratio = tabla->tabla[i][total_vars] / tabla->tabla[i][j];
+                    if (ratio >= -EPSILON && ratio < min_ratio - EPSILON) {
+                        min_ratio = ratio;
+                        fila_pivote = i;
+                    }
+                }
+            }
+            
+            if (fila_pivote != -1) {
+                realizar_pivote(tabla, fila_pivote, j);
+                return tabla;
             }
         }
     }
     
-    if (fila_pivote == -1) {
-        return false;
-    }
-    
-    pivotear(tabla, fila_pivote, variable_cero);
-    return true;
+    liberar_tabla_simplex(tabla);
+    return NULL;
 }
 
-
-TablaSimplex* copiar_tabla_simplex(const TablaSimplex *original) {
-    if (!original) return NULL;
-    TablaSimplex *copia = crear_tabla_simplex(original->num_vars, original->num_rest, original->tipo);
-    for (int i = 0; i <= original->num_rest; i++) {
-        for (int j = 0; j <= original->num_vars + original->num_rest; j++) {
-            copia->tabla[i][j] = original->tabla[i][j];
+// Extraer solución de la tabla
+void extraer_solucion(TablaSimplex *tabla, double *solucion) {
+    for (int i = 0; i < tabla->num_vars_decision; i++) {
+        solucion[i] = 0.0;
+    }
+    
+    for (int i = 0; i < tabla->num_restricciones; i++) {
+        int var_base = tabla->variables_base[i];
+        if (var_base < tabla->num_vars_decision) {
+            solucion[var_base] = tabla->tabla[i + 1][tabla->columnas - 1];
         }
     }
-    for (int i = 0; i < original->num_rest; i++) {
-        copia->variables_basicas[i] = original->variables_basicas[i];
-    }
-    return copia;
 }
 
-ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostrar_tablas) {
+// Función principal para resolver el simplex con todas las mejoras
+ResultadoSimplex* resolver_simplex(TablaSimplex *tabla, gboolean mostrar_tablas) {
     ResultadoSimplex *resultado = g_new0(ResultadoSimplex, 1);
-    resultado->proceso = g_string_new("");
-    resultado->solucion = g_new0(double, tabla->num_vars);
-    resultado->tipo_solucion = SOLUCION_UNICA;
-    resultado->mensaje = NULL;
-    resultado->tablas_intermedias = NULL;
-    resultado->tabla_final = NULL;  
-    resultado->segunda_tabla = NULL; 
-    resultado->iteraciones = 0;
-    resultado->soluciones_adicionales = NULL;
-    resultado->num_soluciones_adicionales = 0;
-    resultado->operaciones_pivoteo = NULL;
-    
+    resultado->tablas_intermedias = g_new0(TablaSimplex*, MAX_ITERACIONES + 2);
+    resultado->num_tablas = 0;
+    resultado->es_degenerado = FALSE;
+    preparar_tabla_simplex(tabla);
+    resultado->tablas_intermedias[resultado->num_tablas++] = copiar_tabla(tabla);
     int iteracion = 0;
-    const int MAX_ITERACIONES = 50;
-    
-    g_string_append_printf(resultado->proceso, "--- INICIANDO ALGORITMO SIMPLEX ---\n");
-    g_string_append_printf(resultado->proceso, "Tipo de problema: %s\n", 
-                          tabla->tipo == MAXIMIZACION ? "MAXIMIZACION" : "MINIMIZACION");
-    
-    TablaSimplex *tabla_trabajo = copiar_tabla_simplex(tabla);
-    
-    if (mostrar_tablas) {
-        resultado->tablas_intermedias = g_list_append(resultado->tablas_intermedias, copiar_tabla_simplex(tabla_trabajo));
-    }
-    
-    bool problema_degenerado = false;
-    int variables_cero_count = 0;
+    gboolean problema_no_acotado = FALSE;
+    gboolean problema_degenerado = FALSE;
     
     while (iteracion < MAX_ITERACIONES) {
-        g_string_append_printf(resultado->proceso, "\n--- Iteración %d ---\n", iteracion);
-        
-        bool degenerado_en_iteracion = es_degenerado(tabla_trabajo);
-        if (degenerado_en_iteracion && !problema_degenerado) {
-            problema_degenerado = true;
-            variables_cero_count = contar_variables_cero(tabla_trabajo);
-            g_string_append_printf(resultado->proceso, "DEGENERACIÓN detectada en iteración %d (%d variables básicas = 0)\n", 
-                                  iteracion, variables_cero_count);
-        }
-        
-        if (mostrar_tablas) {
-            imprimir_tabla_simplex(tabla_trabajo, resultado->proceso);
-        }
-        
-        if (es_optima(tabla_trabajo)) {
-            g_string_append_printf(resultado->proceso, "Solución óptima alcanzada\n");
-            break;
-        }
-        
-        int col_pivote = encontrar_columna_pivote(tabla_trabajo);
-        g_string_append_printf(resultado->proceso, "Columna pivote: %d\n", col_pivote);
-        
-        if (col_pivote == -1) {
-            g_string_append_printf(resultado->proceso, "No se encontró columna pivote - solución óptima\n");
-            break;
-        }
-        
-        if (es_no_acotado(tabla_trabajo, col_pivote)) {
-            g_string_append_printf(resultado->proceso, "PROBLEMA NO ACOTADO\n");
-            resultado->tipo_solucion = NO_ACOTADO;
+        if (verificar_optimalidad(tabla)) {
+            if (!verificar_factibilidad(tabla)) {
+                resultado->tipo_solucion = SOLUCION_NO_FACTIBLE;
+                resultado->mensaje = g_strdup("El problema no tiene solución factible (variables artificiales en la base con valor positivo)");
+                break;
+            }
+            
+            resultado->tipo_solucion = SOLUCION_OPTIMA;
+            resultado->valor_z = tabla->tabla[0][tabla->columnas - 1];
+            resultado->solucion = g_new0(double, tabla->num_vars_decision);
+            extraer_solucion(tabla, resultado->solucion);
+            
+            if (verificar_solucion_multiple(tabla)) {
+                resultado->tipo_solucion = SOLUCION_MULTIPLE;
+                resultado->mensaje = g_strdup("Solución óptima múltiple encontrada");
+                
+                TablaSimplex *tabla_alternativa = encontrar_solucion_alternativa(tabla);
+                if (tabla_alternativa) {
+                    resultado->segunda_tabla = tabla_alternativa;
+                    
+                    resultado->num_soluciones_adicionales = 1;
+                    resultado->soluciones_adicionales = g_new0(double*, 1);
+                    resultado->soluciones_adicionales[0] = g_new0(double, tabla->num_vars_decision);
+                    extraer_solucion(tabla_alternativa, resultado->soluciones_adicionales[0]);
+                }
+            } else {
+                resultado->mensaje = g_strdup("Solución óptima única encontrada");
+            }
             
             if (problema_degenerado) {
-                resultado->mensaje = g_strdup_printf("El problema es no acotado y degenerado (%d variables básicas = 0)", 
-                                                   variables_cero_count);
-            } else {
-                resultado->mensaje = g_strdup("El problema es no acotado");
+                resultado->es_degenerado = TRUE;
+                resultado->mensaje = g_strdup_printf("%s (problema degenerado)", resultado->mensaje);
             }
             
-            for (int i = 0; i < tabla->num_vars; i++) {
-                resultado->solucion[i] = 0.0;
-            }
-            resultado->valor_optimo = 0.0;
-            
-            liberar_tabla_simplex(tabla_trabajo);
-            return resultado;
+            break;
         }
         
-        int *filas_empatadas = NULL;
-        int num_empates = 0;
-        int fila_pivote = encontrar_fila_pivote(tabla_trabajo, col_pivote, &filas_empatadas, &num_empates);
-        g_string_append_printf(resultado->proceso, "Fila pivote: %d\n", fila_pivote);
+        int col_pivote = encontrar_columna_pivote(tabla);
+        
+        if (verificar_no_acotamiento(tabla, col_pivote)) {
+            resultado->tipo_solucion = SOLUCION_NO_ACOTADA;
+            resultado->mensaje = g_strdup("El problema es no acotado");
+            problema_no_acotado = TRUE;
+            break;
+        }
+        
+        if (col_pivote == -1) {
+            resultado->tipo_solucion = SOLUCION_NO_ACOTADA;
+            resultado->mensaje = g_strdup("El problema es no acotado");
+            break;
+        }
+        
+        gboolean es_degenerado_iteracion = FALSE;
+        int fila_pivote = encontrar_fila_pivote(tabla, col_pivote, &es_degenerado_iteracion);
         
         if (fila_pivote == -1) {
-            g_string_append_printf(resultado->proceso, "No se encontró fila pivote válida\n");
-            resultado->tipo_solucion = NO_ACOTADO;
-            resultado->mensaje = g_strdup("No se encontró fila pivote válida - problema no acotado");
-            
-            for (int i = 0; i < tabla->num_vars; i++) {
-                resultado->solucion[i] = 0.0;
-            }
-            resultado->valor_optimo = 0.0;
-            
-            liberar_tabla_simplex(tabla_trabajo);
-            return resultado;
-        }
-
-        OperacionPivoteo *op = g_new0(OperacionPivoteo, 1);
-        op->iteracion = iteracion;
-        op->columna_pivote = col_pivote;
-        op->fila_pivote = fila_pivote;
-        op->variable_entra = col_pivote;
-        if (fila_pivote >= 0 && fila_pivote < tabla_trabajo->num_rest) {
-            op->variable_sale = tabla_trabajo->variables_basicas[fila_pivote];
-        } else {
-            op->variable_sale = -1;
-        }
-        if (fila_pivote >= 0 && col_pivote >= 0) {
-            op->elemento_pivote = tabla_trabajo->tabla[fila_pivote + 1][col_pivote];
-        } else {
-            op->elemento_pivote = 0.0;
+            resultado->tipo_solucion = SOLUCION_NO_ACOTADA;
+            resultado->mensaje = g_strdup("El problema es no acotado");
+            break;
         }
         
-        op->hubo_empate = (num_empates > 1);
-        op->num_empates = num_empates;
-        op->filas_empatadas = filas_empatadas;  
-        
-        resultado->operaciones_pivoteo = g_list_append(resultado->operaciones_pivoteo, op);
-        
-        if (num_empates > 1) {
-            g_string_append_printf(resultado->proceso, "EMPATE DETECTADO: %d filas con ratio mínimo\n", num_empates);
-            g_string_append_printf(resultado->proceso, "Filas empatadas: ");
-            for (int i = 0; i < num_empates; i++) {
-                g_string_append_printf(resultado->proceso, "%d ", filas_empatadas[i] + 1);
-            }
-            g_string_append_printf(resultado->proceso, "\n");
-            g_string_append_printf(resultado->proceso, "Seleccionada aleatoriamente: fila %d\n", fila_pivote + 1);
+        if (es_degenerado_iteracion) {
+            problema_degenerado = TRUE;
         }
-        
-        g_string_append_printf(resultado->proceso, "Pivoteando en (%d, %d)\n", fila_pivote + 1, col_pivote);
-        pivotear(tabla_trabajo, fila_pivote, col_pivote);
         
         if (mostrar_tablas) {
-            resultado->tablas_intermedias = g_list_append(resultado->tablas_intermedias, copiar_tabla_simplex(tabla_trabajo));
+            resultado->tablas_intermedias[resultado->num_tablas++] = copiar_tabla(tabla);
         }
         
+        realizar_pivote(tabla, fila_pivote, col_pivote);
         iteracion++;
     }
     
-    resultado->iteraciones = iteracion;
-    
-    if (iteracion >= MAX_ITERACIONES) {
-        g_string_append_printf(resultado->proceso, "ADVERTENCIA: Máximo de iteraciones alcanzado\n");
-        if (!resultado->mensaje) {
-            resultado->mensaje = g_strdup("Se alcanzó el máximo número de iteraciones");
-        }
+    if (iteracion >= MAX_ITERACIONES && !problema_no_acotado) {
+        resultado->tipo_solucion = SOLUCION_NO_FACTIBLE;
+        resultado->mensaje = g_strdup("Número máximo de iteraciones alcanzado");
     }
     
-    if (resultado->tipo_solucion != NO_ACOTADO) {
-        extraer_solucion(tabla_trabajo, resultado->solucion);
-        resultado->valor_optimo = tabla_trabajo->tabla[0][tabla_trabajo->num_vars + tabla_trabajo->num_rest];
-    }
+    // Guardar tabla final
+    resultado->tablas_intermedias[resultado->num_tablas++] = copiar_tabla(tabla);
     
-    if (problema_degenerado && resultado->tipo_solucion != NO_ACOTADO) {
-        g_string_append_printf(resultado->proceso, "PROBLEMA DEGENERADO - %d variables básicas con valor cero\n", variables_cero_count);
-        
-        if (resultado->tipo_solucion != SOLUCION_MULTIPLE) {
-            resultado->tipo_solucion = DEGENERADO;
-        }
-        
-        if (!resultado->mensaje) {
-            resultado->mensaje = g_strdup_printf("Se detectó degeneración (%d variables básicas = 0)", variables_cero_count);
-        }
-    }
-    
-    // Verificar soluciones múltiples (solo si no es no acotado)
-    if (resultado->tipo_solucion != NO_ACOTADO && es_solucion_multiple(tabla_trabajo)) {
-        g_string_append_printf(resultado->proceso, "SOLUCION MULTIPLE detectada\n");
-        resultado->tipo_solucion = SOLUCION_MULTIPLE;
-        
-        // Actualizar mensaje para incluir degeneración si existe
-        if (problema_degenerado) {
-            resultado->mensaje = g_strdup_printf("Se detectaron soluciones múltiples con degeneración (%d variables básicas = 0)", 
-                                               variables_cero_count);
-        } else {
-            resultado->mensaje = g_strdup("Se detectaron soluciones múltiples");
-        }
-        
-        resultado->tabla_final = copiar_tabla_simplex(tabla_trabajo);
-        
-        int variable_cero = encontrar_variable_no_basica_con_cero(tabla_trabajo);
-        
-        if (variable_cero != -1) {
-            g_string_append_printf(resultado->proceso, "Variable no básica con coeficiente cero: X%d\n", variable_cero + 1);
-            
-            resultado->segunda_tabla = copiar_tabla_simplex(tabla_trabajo);
-            
-            if (pivotear_para_segunda_solucion(resultado->segunda_tabla, variable_cero)) {
-                g_string_append_printf(resultado->proceso, "Segunda solución obtenida exitosamente\n");
-                
-                if (mostrar_tablas) {
-                    resultado->tablas_intermedias = g_list_append(resultado->tablas_intermedias, 
-                        copiar_tabla_simplex(resultado->segunda_tabla));
-                }
-            } else {
-                g_string_append_printf(resultado->proceso, "No se pudo obtener segunda solución\n");
-                liberar_tabla_simplex(resultado->segunda_tabla);
-                resultado->segunda_tabla = NULL;
-            }
-        } else {
-            g_string_append_printf(resultado->proceso, "No se encontró variable no básica con coeficiente cero\n");
-            resultado->segunda_tabla = NULL;
-        }
-    } else if (resultado->tipo_solucion != NO_ACOTADO) {
-        resultado->tabla_final = copiar_tabla_simplex(tabla_trabajo);
-    }
-    
-    g_string_append_printf(resultado->proceso, "\n--- FINALIZANDO ALGORITMO SIMPLEX ---\n");
-    g_string_append_printf(resultado->proceso, "Iteraciones totales: %d\n", iteracion);
-    
-    if (resultado->tipo_solucion != NO_ACOTADO) {
-        g_string_append_printf(resultado->proceso, "Valor óptimo: %.4f\n", resultado->valor_optimo);
-    } else {
-        g_string_append_printf(resultado->proceso, "Valor óptimo: NO APLICA (problema no acotado)\n");
-    }
-    
-    liberar_tabla_simplex(tabla_trabajo);
     return resultado;
 }
 
-void imprimir_tabla_simplex(TablaSimplex *tabla, GString *output) {
-    if (!output) return;
-    g_string_append_printf(output, "\nTabla Simplex:\n");
-    g_string_append_printf(output, "Z: ");
-    for (int j = 0; j <= tabla->num_vars + tabla->num_rest; j++) {
-        g_string_append_printf(output, "%8.3f ", tabla->tabla[0][j]);
-    }
-    g_string_append_printf(output, "\n");
-    for (int i = 1; i <= tabla->num_rest; i++) {
-        if (tabla->variables_basicas[i-1] < tabla->num_vars) {
-            g_string_append_printf(output, "X%d: ", tabla->variables_basicas[i-1] + 1);
-        } else {
-            g_string_append_printf(output, "S%d: ", tabla->variables_basicas[i-1] - tabla->num_vars + 1);
+ResultadoSimplex* ejecutar_simplex_completo(TablaSimplex *tabla, gboolean mostrar_tablas) {
+    return resolver_simplex(tabla, mostrar_tablas);
+}
+
+void liberar_tabla_simplex(TablaSimplex *tabla) {
+    if (!tabla) return;
+    
+    if (tabla->tabla) {
+        for (int i = 0; i < tabla->filas; i++) {
+            g_free(tabla->tabla[i]);
         }
-        for (int j = 0; j <= tabla->num_vars + tabla->num_rest; j++) {
-            g_string_append_printf(output, "%8.3f ", tabla->tabla[i][j]);
-        }
-        g_string_append_printf(output, "\n");
+        g_free(tabla->tabla);
     }
-    g_string_append_printf(output, "\n");
+    
+    if (tabla->A) {
+        for (int i = 0; i < tabla->num_restricciones; i++) {
+            g_free(tabla->A[i]);
+        }
+        g_free(tabla->A);
+    }
+    
+    if (tabla->c) g_free(tabla->c);
+    if (tabla->variables_base) g_free(tabla->variables_base);
+    if (tabla->es_artificial) g_free(tabla->es_artificial);
+    if (tabla->lados_derechos) g_free(tabla->lados_derechos);
+    if (tabla->tipos_restricciones) g_free(tabla->tipos_restricciones);
+    
+    if (tabla->nombres_vars) {
+        int total_vars = tabla->num_vars_decision + tabla->num_vars_holgura + 
+                        tabla->num_vars_exceso + tabla->num_vars_artificiales;
+        for (int i = 0; i < total_vars; i++) {
+            g_free(tabla->nombres_vars[i]);
+        }
+        g_free(tabla->nombres_vars);
+    }
+    
+    g_free(tabla);
 }
 
 void liberar_resultado(ResultadoSimplex *resultado) {
     if (!resultado) return;
     
-    if (resultado->solucion) {
-        g_free(resultado->solucion);
-        resultado->solucion = NULL;
+    if (resultado->solucion) g_free(resultado->solucion);
+    if (resultado->mensaje) g_free(resultado->mensaje);
+    
+    if (resultado->tablas_intermedias) {
+        for (int i = 0; i < resultado->num_tablas; i++) {
+            liberar_tabla_simplex(resultado->tablas_intermedias[i]);
+        }
+        g_free(resultado->tablas_intermedias);
     }
     
     if (resultado->soluciones_adicionales) {
         for (int i = 0; i < resultado->num_soluciones_adicionales; i++) {
-            if (resultado->soluciones_adicionales[i]) {
-                g_free(resultado->soluciones_adicionales[i]);
-            }
+            g_free(resultado->soluciones_adicionales[i]);
         }
         g_free(resultado->soluciones_adicionales);
-        resultado->soluciones_adicionales = NULL;
-    }
-    resultado->num_soluciones_adicionales = 0;
-    
-    if (resultado->proceso) {
-        g_string_free(resultado->proceso, TRUE);
-        resultado->proceso = NULL;
-    }
-    
-    if (resultado->mensaje) {
-        g_free(resultado->mensaje);
-        resultado->mensaje = NULL;
-    }
-    
-    if (resultado->tabla_final) {
-        liberar_tabla_simplex(resultado->tabla_final);
-        resultado->tabla_final = NULL;
     }
     
     if (resultado->segunda_tabla) {
         liberar_tabla_simplex(resultado->segunda_tabla);
-        resultado->segunda_tabla = NULL;
-    }
-    
-    if (resultado->tablas_intermedias) {
-        GList *iter = resultado->tablas_intermedias;
-        while (iter) {
-            if (iter->data) {
-                liberar_tabla_simplex((TablaSimplex*)iter->data);
-            }
-            iter = g_list_next(iter);
-        }
-        g_list_free(resultado->tablas_intermedias);
-        resultado->tablas_intermedias = NULL;
-    }
-    
-    if (resultado->operaciones_pivoteo) {
-        GList *iter = resultado->operaciones_pivoteo;
-        while (iter) {
-            if (iter->data) {
-                g_free(iter->data);
-            }
-            iter = g_list_next(iter);
-        }
-        g_list_free(resultado->operaciones_pivoteo);
-        resultado->operaciones_pivoteo = NULL;
-    }
-    
-    if (resultado->variables_entran) {
-        g_free(resultado->variables_entran);
-        resultado->variables_entran = NULL;
-    }
-    
-    if (resultado->variables_salen) {
-        g_free(resultado->variables_salen);
-        resultado->variables_salen = NULL;
-    }
-    
-    if (resultado->filas_pivote) {
-        g_free(resultado->filas_pivote);
-        resultado->filas_pivote = NULL;
-    }
-    
-    if (resultado->columnas_pivote) {
-        g_free(resultado->columnas_pivote);
-        resultado->columnas_pivote = NULL;
-    }
-
-    if (resultado->operaciones_pivoteo) {
-        GList *iter = resultado->operaciones_pivoteo;
-        while (iter) {
-            if (iter->data) {
-                OperacionPivoteo *op = (OperacionPivoteo*)iter->data;
-                if (op->filas_empatadas) {
-                    g_free(op->filas_empatadas);
-                }
-                g_free(iter->data);
-            }
-            iter = g_list_next(iter);
-        }
-        g_list_free(resultado->operaciones_pivoteo);
-        resultado->operaciones_pivoteo = NULL;
     }
     
     g_free(resultado);
+}
+
+const char* obtener_nombre_variable(TablaSimplex *tabla, int indice) {
+    if (indice < 0 || indice >= (tabla->num_vars_decision + tabla->num_vars_holgura + 
+                                tabla->num_vars_exceso + tabla->num_vars_artificiales)) {
+        return "?";
+    }
+    return tabla->nombres_vars[indice];
 }

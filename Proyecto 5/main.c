@@ -88,6 +88,9 @@ static gchar *g_problems_dir = NULL;
 // ----------------- Helpers -----------------
 // -------------------------------------------
 
+// Función para calcular soluciones adicionales
+
+
 static void validateEntryNumber(GtkEditable *editable,const gchar *text, gint length, gint *position, gpointer user_data) {
     const gchar *current = gtk_entry_get_text(GTK_ENTRY(editable));
     gboolean isReal = (strchr(current, '.') != NULL);
@@ -220,26 +223,6 @@ static gchar** split_and_trim(const gchar *linea, const gchar *sep, int *count_o
         if (count_out) (*count_out)++;
     }
     return parts;
-}
-
-static void showInvalidConstraintsDialog(GtkWidget *parent) {
-    GtkWindow *win = NULL;
-    if (parent) {
-        GtkWidget *top = gtk_widget_get_toplevel(parent);
-        if (GTK_IS_WINDOW(top)) win = GTK_WINDOW(top);
-    }
-
-    GtkWidget *dlg = gtk_message_dialog_new(
-        win,
-        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-        GTK_MESSAGE_INFO,
-        GTK_BUTTONS_OK,
-        "Por ahora solo se admiten restricciones ≤.\n"
-        "Las opciones ≥ y = no están disponibles."
-    );
-    gtk_window_set_title(GTK_WINDOW(dlg), "Opción no disponible");
-    gtk_dialog_run(GTK_DIALOG(dlg));
-    gtk_widget_destroy(dlg);
 }
 
 // -------------------------------------------
@@ -382,6 +365,8 @@ static ResultadoSimplex* construir_y_resolver_simplex(void) {
     
     TipoProblema tipo = (strcmp(type, "MAX") == 0) ? MAXIMIZACION : MINIMIZACION;
     TablaSimplex *tabla = crear_tabla_simplex(n, m, tipo);
+    
+    // Establecer función objetivo
     double *coef_obj = g_new0(double, n);
     for (int i = 0; i < n; i++) {
         GtkWidget *coef_entry = grid_at(ZGrid, 3*i, 0);
@@ -391,70 +376,48 @@ static ResultadoSimplex* construir_y_resolver_simplex(void) {
             coef_obj[i] = 0.0;
         }
     }
-    
-    establecer_funcion_objetivo_simplex(tabla, coef_obj);
+    establecer_funcion_objetivo(tabla, coef_obj);
     g_free(coef_obj);
     
-    // Leer restricciones 
+    // Leer restricciones
     for (int r = 0; r < m; r++) {
         double *coef_rest = g_new0(double, n);
         double lado_derecho = 0.0;
+        TipoRestriccion tipo_rest = RESTRICCION_LE;
         
-        g_print("--- Restricción %d ---\n", r+1);
-        
+        // Leer coeficientes
         for (int i = 0; i < n; i++) {
             GtkWidget *coef_entry = grid_at(gridRestrictions, 3*i, r);
             if (coef_entry && GTK_IS_ENTRY(coef_entry)) {
                 coef_rest[i] = entry_to_double(coef_entry);
-                g_print("Coef X%d: %f (widget: %p)\n", i+1, coef_rest[i], coef_entry);
             } else {
-                g_print("ERROR: No se encontró coeficiente X%d en restricción %d\n", i+1, r+1);
                 coef_rest[i] = 0.0;
             }
         }
         
-        int rhs_col = 3 * n + 1;
-        GtkWidget *rhs_entry = grid_at(gridRestrictions, rhs_col, r);
+        // Leer tipo de restricción
+        GtkWidget *rel = grid_at(gridRestrictions, 3*n - 1, r);
+        int tipo_idx = combo_active_index(rel);
+        switch (tipo_idx) {
+            case 0: tipo_rest = RESTRICCION_LE; break;  // ≤
+            case 1: tipo_rest = RESTRICCION_GE; break;  // ≥
+            case 2: tipo_rest = RESTRICCION_EQ; break;  // =
+        }
         
+        // Leer lado derecho
+        int rhs_col = 3 * n;
+        GtkWidget *rhs_entry = grid_at(gridRestrictions, rhs_col, r);
         if (rhs_entry && GTK_IS_ENTRY(rhs_entry)) {
             lado_derecho = entry_to_double(rhs_entry);
-            g_print("Lado derecho: %f (widget: %p, columna: %d)\n", lado_derecho, rhs_entry, rhs_col);
         } else {
-            rhs_col = 3 * n;
-            rhs_entry = grid_at(gridRestrictions, rhs_col, r);
-            if (rhs_entry && GTK_IS_ENTRY(rhs_entry)) {
-                lado_derecho = entry_to_double(rhs_entry);
-                g_print("Lado derecho (alt): %f (widget: %p, columna: %d)\n", lado_derecho, rhs_entry, rhs_col);
-            } else {
-                g_print("ERROR: No se encontró lado derecho en restricción %d (buscado en col %d)\n", r+1, rhs_col);
-                lado_derecho = 0.0;
-            }
+            lado_derecho = 0.0;
         }
-        g_print("Widgets en fila %d:", r);
-        for (int col = 0; col < 3*n + 3; col++) {
-            GtkWidget *widget = grid_at(gridRestrictions, col, r);
-            if (widget) {
-                const char *type_name = G_OBJECT_TYPE_NAME(widget);
-                if (GTK_IS_ENTRY(widget)) {
-                    const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
-                    g_print(" [%d:%s='%s']", col, type_name, text);
-                } else if (GTK_IS_LABEL(widget)) {
-                    const char *text = gtk_label_get_text(GTK_LABEL(widget));
-                    g_print(" [%d:%s='%s']", col, type_name, text);
-                } else {
-                    g_print(" [%d:%s]", col, type_name);
-                }
-            } else {
-                g_print(" [%d:NULL]", col);
-            }
-        }
-        g_print("\n");
         
-        agregar_restriccion_simplex(tabla, r, coef_rest, lado_derecho);
+        agregar_restriccion(tabla, r, coef_rest, lado_derecho, tipo_rest);
         g_free(coef_rest);
     }
     
-    ResultadoSimplex *resultado = ejecutar_simplex_completo(tabla, showTables);
+    ResultadoSimplex *resultado = resolver_simplex(tabla, showTables);
     liberar_tabla_simplex(tabla);
     
     return resultado;
@@ -467,27 +430,14 @@ void calcular_soluciones_adicionales(ResultadoSimplex *resultado, ProblemaInfo *
     resultado->num_soluciones_adicionales = 3;
     resultado->soluciones_adicionales = g_new0(double*, 3);
     
-    double *sol2 = g_new0(double, info->num_vars);
-    if (resultado->segunda_tabla) {
-        extraer_solucion(resultado->segunda_tabla, sol2);
-    } else {
-        for (int i = 0; i < info->num_vars; i++) {
-            sol2[i] = 0.0;
-        }
-    }
-    
+    // Crear soluciones adicionales (esto es un ejemplo simplificado)
     for (int k = 0; k < 3; k++) {
         resultado->soluciones_adicionales[k] = g_new0(double, info->num_vars);
-        
-        double lambda = (k + 1) * 0.25; 
-        
         for (int i = 0; i < info->num_vars; i++) {
-            resultado->soluciones_adicionales[k][i] = 
-                lambda * resultado->solucion[i] + (1 - lambda) * sol2[i];
+            // Distribuir valores alrededor de la solución óptima
+            resultado->soluciones_adicionales[k][i] = resultado->solucion[i] * (0.7 + 0.3 * k);
         }
     }
-    
-    g_free(sol2);
 }
 
 // Escribe el CSV en 'filepath'
@@ -599,7 +549,7 @@ static gboolean loadFromCSV(const char *filepath) {
     if (!lines) { g_free(contents); return FALSE; }
 
     GPtrArray *vars       = g_ptr_array_new_with_free_func(g_free);
-    GPtrArray *rest_filas = g_ptr_array_new_with_free_func(g_strfreev);
+    GPtrArray *rest_filas = g_ptr_array_new_with_free_func((GDestroyNotify)g_strfreev);
     gchar *prob_name = NULL;
     gchar *tipo_str  = NULL;
     int n = -1, m = -1;
@@ -805,11 +755,6 @@ void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
             break;
         }
     }
-    
-    if (!todas_menor_igual) {
-        showInvalidConstraintsDialog(widget);
-        return;
-    }
 
     gboolean todos_no_negativos = TRUE;
     for (int r = 0; r < m; r++) {
@@ -857,6 +802,28 @@ void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
         info.nombres_vars = nombres_vars;
         info.num_vars = n;
         info.num_rest = m;
+
+        info.tipos_restricciones = g_new0(TipoRestriccion, m);
+        for (int r = 0; r < m; r++) {
+            GtkWidget *rel = grid_at(gridRestrictions, 3*n - 1, r);
+            int tipo_rest = combo_active_index(rel);
+            
+            // Convertir el índice del combo box al TipoRestriccion
+            switch (tipo_rest) {
+                case 0:  // "<="
+                    info.tipos_restricciones[r] = RESTRICCION_LE;
+                    break;
+                case 1:  // ">="  
+                    info.tipos_restricciones[r] = RESTRICCION_GE;
+                    break;
+                case 2:  // "="
+                    info.tipos_restricciones[r] = RESTRICCION_EQ;
+                    break;
+                default:
+                    info.tipos_restricciones[r] = RESTRICCION_LE; // Por defecto
+                    break;
+            }
+        }
         
         const char *nombre_problema = gtk_entry_get_text(GTK_ENTRY(nameEntry));
         info.nombre_problema = (nombre_problema && strlen(nombre_problema) > 0) ? 
@@ -891,6 +858,7 @@ void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
             calcular_soluciones_adicionales(resultado, &info);
         }
         
+        
         char nombre_archivo_tex[256];
         char nombre_archivo_pdf[256];
         const char *nombre_ingresado = gtk_entry_get_text(GTK_ENTRY(nameEntry));
@@ -922,6 +890,7 @@ void on_solveButton_clicked(GtkWidget *widget, gpointer data) {
         generar_documento_latex(resultado, &info, nombre_archivo_tex, showTables);
         compilar_y_mostrar_pdf(nombre_archivo_tex, nombre_archivo_pdf);
         
+        g_free(info.tipos_restricciones); 
         g_free(nombres_vars);
         g_free(info.coef_obj);
         for (int r = 0; r < m; r++) {

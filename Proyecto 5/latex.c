@@ -1,12 +1,41 @@
 #include "latex.h"
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <math.h> 
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <math.h>
+#include <glib.h>
+#ifndef M_GRANDE
+#define M_GRANDE 1.0e6
+#endif
 
-void formatear_numero(double valor, char *buffer, size_t buffer_size) {
+#ifndef EPSILON
+#define EPSILON 1.0e-10
+#endif
+
+// Función auxiliar para escapar caracteres especiales de LaTeX
+static char* escape_latex(const char *texto) {
+    if (!texto) return g_strdup("");
+    
+    GString *resultado = g_string_new("");
+    for (const char *p = texto; *p; p++) {
+        switch (*p) {
+            case '&': g_string_append(resultado, "\\&"); break;
+            case '%': g_string_append(resultado, "\\%"); break;
+            case '$': g_string_append(resultado, "\\$"); break;
+            case '#': g_string_append(resultado, "\\#"); break;
+            case '_': g_string_append(resultado, "\\_"); break;
+            case '{': g_string_append(resultado, "\\{"); break;
+            case '}': g_string_append(resultado, "\\}"); break;
+            case '~': g_string_append(resultado, "\\textasciitilde{}"); break;
+            case '^': g_string_append(resultado, "\\textasciicircum{}"); break;
+            case '\\': g_string_append(resultado, "\\textbackslash{}"); break;
+            default: g_string_append_c(resultado, *p); break;
+        }
+    }
+    return g_string_free(resultado, FALSE);
+}
+
+// Funciones auxiliares para formateo de números y variables
+static void formatear_numero(double valor, char *buffer, size_t buffer_size) {
     if (fabs(valor - round(valor)) < 0.0001) {
         snprintf(buffer, buffer_size, "%.0f", valor);
     } else {
@@ -17,11 +46,37 @@ void formatear_numero(double valor, char *buffer, size_t buffer_size) {
     }
 }
 
-void formatear_nombre_variable_latex(const char *nombre_original, char *buffer, size_t buffer_size) {
-    if (nombre_original && (nombre_original[0] == 'X' || nombre_original[0] == 'x')) {
+static void formatear_nombre_variable_latex(const char *nombre_original, char *buffer, size_t buffer_size) {
+    if (!nombre_original) {
+        snprintf(buffer, buffer_size, "?");
+        return;
+    }
+    
+    if (nombre_original[0] == 'X' || nombre_original[0] == 'x') {
         int num_var = atoi(nombre_original + 1);
         if (num_var > 0) {
             snprintf(buffer, buffer_size, "x_{%d}", num_var);
+        } else {
+            snprintf(buffer, buffer_size, "\\text{%s}", nombre_original);
+        }
+    } else if (nombre_original[0] == 'S' || nombre_original[0] == 's') {
+        int num_var = atoi(nombre_original + 1);
+        if (num_var > 0) {
+            snprintf(buffer, buffer_size, "s_{%d}", num_var);
+        } else {
+            snprintf(buffer, buffer_size, "\\text{%s}", nombre_original);
+        }
+    } else if (nombre_original[0] == 'E' || nombre_original[0] == 'e') {
+        int num_var = atoi(nombre_original + 1);
+        if (num_var > 0) {
+            snprintf(buffer, buffer_size, "e_{%d}", num_var);
+        } else {
+            snprintf(buffer, buffer_size, "\\text{%s}", nombre_original);
+        }
+    } else if (nombre_original[0] == 'A' || nombre_original[0] == 'a') {
+        int num_var = atoi(nombre_original + 1);
+        if (num_var > 0) {
+            snprintf(buffer, buffer_size, "a_{%d}", num_var);
         } else {
             snprintf(buffer, buffer_size, "\\text{%s}", nombre_original);
         }
@@ -30,20 +85,21 @@ void formatear_nombre_variable_latex(const char *nombre_original, char *buffer, 
     }
 }
 
-void formatear_nombre_variable_tabla(const char *nombre_original, char *buffer, size_t buffer_size) {
-    if (nombre_original && (nombre_original[0] == 'X' || nombre_original[0] == 'x')) {
-        int num_var = atoi(nombre_original + 1);
-        if (num_var > 0) {
-            snprintf(buffer, buffer_size, "$x_{%d}$", num_var);
-        } else {
-            snprintf(buffer, buffer_size, "\\textbf{%s}", nombre_original);
-        }
-    } else {
-        snprintf(buffer, buffer_size, "\\textbf{%s}", nombre_original);
+static void formatear_nombre_variable_tabla(const char *nombre_original, char *buffer, size_t buffer_size) {
+    if (!nombre_original) {
+        snprintf(buffer, buffer_size, "?");
+        return;
     }
+    
+    char var_latex[64];
+    formatear_nombre_variable_latex(nombre_original, var_latex, sizeof(var_latex));
+    snprintf(buffer, buffer_size, "$%s$", var_latex);
 }
 
-void generar_portada_latex(GString *latex, const char *nombre_problema) {
+// Función para generar la portada y encabezado del documento
+static void generar_portada_latex(GString *latex, const char *nombre_problema) {
+    char *nombre_escape = escape_latex(nombre_problema);
+    
     g_string_append_printf(latex,
         "\\documentclass[12pt]{article}\n"
         "\\usepackage[utf8]{inputenc}\n"
@@ -60,6 +116,11 @@ void generar_portada_latex(GString *latex, const char *nombre_problema) {
         "\\fancyhf{}\n"
         "\\rhead{Investigación de Operaciones}\n"
         "\\lhead{Método Simplex}\n"
+        "\n"
+        "\\definecolor{basecolor}{RGB}{0,128,0}\n"
+        "\\definecolor{entracolor}{RGB}{255,0,0}\n"
+        "\\definecolor{empatecolor}{RGB}{0,0,200}\n"
+        "\\definecolor{pivotecolor}{RGB}{200,0,200}\n"
         "\n"
         "\\title{Resultados del Método Simplex\\\\\n"
         "\\large Problema: \\textbf{%s}}\n"
@@ -88,1009 +149,613 @@ void generar_portada_latex(GString *latex, const char *nombre_problema) {
         "\\newpage\n"
         "\\tableofcontents\n"
         "\\newpage\n",
-        nombre_problema ? nombre_problema : "Optimización");
+        nombre_escape);
+    
+    g_free(nombre_escape);
 }
 
-void generar_algoritmo_simplex_latex(GString *latex) {
+// Función para generar la explicación del algoritmo simplex
+static void generar_algoritmo_simplex_latex(GString *latex) {
     g_string_append_printf(latex,
         "\\section{El Algoritmo Simplex}\n"
         "\n"
         "\\subsection{Historia}\n"
-        "El m\\'etodo Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza A\\'erea de los Estados Unidos. \\\\\n"
+        "El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\\\\n"
         "\n"
-        "Es uno de los algoritmos m\\'as importantes en la historia de la optimizaci\\'on matem\\'atica y ha sido fundamental en el desarrollo de la programaci\\'on lineal. Usa operaciones sobre matrices hasta encontrar la soluci\\'on \\'optima o determinar que el problema no tiene soluci\\'on. Parte de un v\\'ertice de la regi\\'on factible y \"salta\" a v\\'ertices adyacentes que mejoren lo encontrado hasta encontrar la condici\\'on de salida.\n"
+        "Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal. Usa operaciones sobre matrices hasta encontrar la solución óptima o determinar que el problema no tiene solución. Parte de un vértice de la región factible y \"salta\" a vértices adyacentes que mejoren lo encontrado hasta encontrar la condición de salida.\n"
         "\n"
-        "\\subsection{Complejidad}\n"
-        "En el peor de los casos el S\\'implex podr\\'ia probar tantas bases como el m\\'etodo exhaustivo. (Solo en ejemplos montados para que falle.) Normalmente va a encontrar la soluci\\'on \\'optima en $3n$ intentos.\n"
+        "\\subsection{Método de la Gran M}\n"
+        "El método de la Gran M se utiliza cuando el problema tiene restricciones de tipo $\\geq$ o $=$ que requieren variables artificiales. Se asigna un coeficiente $M$ muy grande en la función objetivo para las variables artificiales, donde:\n"
+        "\\begin{itemize}\n"
+        "\\item Para \\textbf{maximización}: $M$ es negativo grande ($-M$)\n"
+        "\\item Para \\textbf{minimización}: $M$ es positivo grande ($+M$)\n"
+        "\\item El valor de $M$ utilizado es: $%.0f$\n"
+        "\\end{itemize}\n"
+        "Esto fuerza a las variables artificiales a salir de la base en la solución óptima.\n"
         "\n"
         "\\subsection{Propiedades Fundamentales}\n"
         "\\begin{itemize}\n"
-        "\\item \\textbf{Convergencia:} El algoritmo converge a la soluci\\'on \\'optima en un n\\'umero finito de pasos (en la mayor\\'ia de los casos pr\\'acticos)\n"
-        "\\item \\textbf{Complejidad:} En el peor caso tiene complejidad exponencial, pero en la pr\\'actica es muy eficiente\n"
-        "\\item \\textbf{Optimalidad:} Garantiza encontrar la soluci\\'on \\'optima global para problemas convexos\n"
-        "\\item \\textbf{Factibilidad:} Mantiene la factibilidad en cada iteraci\\'on\n"
-        "\\end{itemize}\n"
-        "\n"
-        "\\subsection{Aplicaciones}\n"
-        "S\\'implex se usa en aplicaciones profesionales como la optimizaci\\'on de recursos empresariales, la log\\'istica y la gesti\\'on de proyectos, donde se usa para encontrar la soluci\\'on m\\'as eficiente a problemas complejos con m\\'ultiples variables y restricciones.\n"
-        "\n"
-        "\\subsection{Descripci\\'on del M\\'etodo}\n"
-        "El m\\'etodo Simplex opera movi\\'endose entre v\\'ertices adyacentes del poliedro factible, mejorando el valor de la funci\\'on objetivo en cada paso hasta alcanzar el \\'optimo.\n"
-        "\n"
-        "\\section{Pasos del M\\'etodo Simplex}\n"
-        "\\begin{enumerate}\n"
-        "\\item \\textbf{Formulaci\\'on del problema:}\n"
-        "\\begin{itemize}\n"
-        "\\item Define la funci\\'on objetivo a maximizar o minimizar y las restricciones lineales asociadas.\n"
-        "\\item Aseg\\'urate de que todas las variables de decisi\\'on sean no negativas.\n"
-        "\\end{itemize}\n"
-        "\n"
-        "\\item \\textbf{Conversi\\'on a forma est\\'andar:}\n"
-        "\\begin{itemize}\n"
-        "\\item Transforma todas las restricciones de desigualdad en igualdades introduciendo variables de holgura (sumar una variable para restricciones $\\leq$) o variables de exceso (restar una variable para restricciones $\\geq$).\n"
-        "\\item Aseg\\'urate de que la funci\\'on objetivo tambi\\'en se iguale a cero.\n"
-        "\\end{itemize}\n"
-        "\n"
-        "\\item \\textbf{Creaci\\'on de la tabla inicial:}\n"
-        "\\begin{itemize}\n"
-        "\\item Organiza el problema en una tabla llamada Tabla Simplex.\n"
-        "\\item La tabla inicial se construye con las variables del problema y una matriz identidad formada por las variables de holgura/exceso.\n"
-        "\\end{itemize}\n"
-        "\n"
-        "\\item \\textbf{Iteraci\\'on:}\n"
-        "\\begin{itemize}\n"
-        "\\item \\textbf{Selecci\\'on de la variable entrante:} Elige la columna con el valor m\\'as negativo en la fila de la funci\\'on objetivo (para maximizar) o el m\\'as positivo (para minimizar). Esta es la columna que entra en la base.\n"
-        "\\item \\textbf{Selecci\\'on de la variable saliente:} Calcula la raz\\'on entre el lado derecho de cada restricci\\'on y el valor correspondiente en la columna de la variable entrante. La fila con el cociente m\\'as peque\\~no es la que sale de la base.\n"
-        "\\item \\textbf{Pivoteo:} Realiza operaciones de escalerizaci\\'on para hacer que el elemento en la intersecci\\'on de la fila entrante y la columna saliente sea $1$ y todos los dem\\'as elementos en esa columna sean $0$. Esto actualiza la tabla y la soluci\\'on.\n"
-        "\\end{itemize}\n"
-        "\n"
-        "\\item \\textbf{Comprobaci\\'on de la soluci\\'on \\'optima:}\n"
-        "\\begin{itemize}\n"
-        "\\item Verifica si la fila de la funci\\'on objetivo en la tabla ya no contiene coeficientes negativos (para maximizar) o positivos (para minimizar).\n"
-        "\\item Si es as\\'i, la soluci\\'on es \\'optima y se puede leer directamente de la tabla.\n"
-        "\\item Si no, repite el proceso de iteraci\\'on.\n"
-        "\\end{itemize}\n"
-        "\\end{enumerate}\n");
+        "\\item \\textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos\n"
+        "\\item \\textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos\n"
+        "\\item \\textbf{Factibilidad:} Mantiene la factibilidad en cada iteración\n"
+        "\\end{itemize}\n\n",
+        M_GRANDE);
 }
 
+// Función para generar el problema original en LaTeX
 void generar_problema_original_latex(GString *latex, ProblemaInfo *info) {
-    g_string_append_printf(latex,
-        "\\section{Problema Original}\n"
-        "\n"
-        "\\subsection{Formulación Matemática}\n");
+    g_string_append(latex, "\\section{Formulación del Problema}\n\n");
+    char *nombre_escape = escape_latex(info->nombre_problema);
+    g_string_append_printf(latex, "\\textbf{Problema:} %s\\\\\n", nombre_escape);
+    g_free(nombre_escape);
+    g_string_append_printf(latex, "\\textbf{Tipo:} %s\\\\\n", (strcmp(info->tipo_problema, "MAX") == 0) ? "Maximización" : "Minimización");
+    g_string_append_printf(latex, "\\textbf{Número de variables:} %d\\\\\n", info->num_vars);
+    g_string_append_printf(latex, "\\textbf{Número de restricciones:} %d\n\n", info->num_rest);
+    g_string_append(latex, "\\subsection{Función Objetivo}\n");
+    g_string_append(latex, "\\[\n");
+    g_string_append_printf(latex, "%s Z = ", 
+                          (strcmp(info->tipo_problema, "MAX") == 0) ? "Maximizar" : "Minimizar");
     
-    if (info->tipo_problema && strcmp(info->tipo_problema, "MAX") == 0) {
-        g_string_append(latex, "\\textbf{Problema de Maximización}\n\n");
-        g_string_append(latex, "\\[ \\text{Maximizar } Z = ");
-    } else {
-        g_string_append(latex, "\\textbf{Problema de Minimización}\n\n");
-        g_string_append(latex, "\\[ \\text{Minimizar } Z = ");
-    }
-    
-    // Función objetivo
+    int primer_coef = 1;
     for (int i = 0; i < info->num_vars; i++) {
-        char num_buffer[32];
-        formatear_numero(info->coef_obj[i], num_buffer, sizeof(num_buffer));
-        
-        if (i > 0 && info->coef_obj[i] >= 0) {
-            g_string_append(latex, "+ ");
-        }
-        const char *nombre_var = info->nombres_vars[i];
-        if (nombre_var && (nombre_var[0] == 'X' || nombre_var[0] == 'x')) {
-            int num_var = atoi(nombre_var + 1);
-            if (num_var > 0) {
-                g_string_append_printf(latex, "%sx_{%d} ", num_buffer, num_var);
-            } else {
-                g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+        if (fabs(info->coef_obj[i]) > EPSILON) {
+            char num_buffer[32];
+            formatear_numero(info->coef_obj[i], num_buffer, sizeof(num_buffer));
+            
+            if (!primer_coef && info->coef_obj[i] >= 0) {
+                g_string_append(latex, " + ");
+            } else if (!primer_coef && info->coef_obj[i] < 0) {
+                g_string_append(latex, " - ");
+            } else if (primer_coef && info->coef_obj[i] < 0) {
+                g_string_append(latex, "-");
             }
-        } else {
-            g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+            
+            char var_latex[64];
+            formatear_nombre_variable_latex(info->nombres_vars[i], var_latex, sizeof(var_latex));
+            
+            double coef_abs = fabs(info->coef_obj[i]);
+            if (fabs(coef_abs - 1.0) > EPSILON) {
+                g_string_append_printf(latex, "%s%s", num_buffer, var_latex);
+            } else {
+                g_string_append_printf(latex, "%s", var_latex);
+            }
+            primer_coef = 0;
         }
     }
-    g_string_append(latex, "\\]\n\n");
-    
-    // Restricciones
-    g_string_append(latex, "\\textbf{Sujeto a:}\n\\begin{align*}\n");
-    for (int i = 0; i < info->num_rest; i++) {
-        for (int j = 0; j < info->num_vars; j++) {
-            char num_buffer[32];
-            formatear_numero(info->coef_rest[i][j], num_buffer, sizeof(num_buffer));
-            
-            if (j > 0 && info->coef_rest[i][j] >= 0) {
-                g_string_append(latex, "+ ");
-            }
-            const char *nombre_var = info->nombres_vars[j];
-            if (nombre_var && (nombre_var[0] == 'X' || nombre_var[0] == 'x')) {
-                int num_var = atoi(nombre_var + 1);
-                if (num_var > 0) {
-                    g_string_append_printf(latex, "%sx_{%d} ", num_buffer, num_var);
-                } else {
-                    g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+    g_string_append(latex, "\n\\]\n\n");
+    g_string_append(latex, "\\subsection{Restricciones}\n");
+    g_string_append(latex, "\\[\n");
+    g_string_append(latex, "\\begin{cases}\n");
+
+    for (int r = 0; r < info->num_rest; r++) {
+        primer_coef = 1;
+        for (int i = 0; i < info->num_vars; i++) {
+            if (fabs(info->coef_rest[r][i]) > EPSILON) {
+                char num_buffer[32];
+                formatear_numero(info->coef_rest[r][i], num_buffer, sizeof(num_buffer));
+                
+                if (!primer_coef && info->coef_rest[r][i] >= 0) {
+                    g_string_append(latex, " + ");
+                } else if (!primer_coef && info->coef_rest[r][i] < 0) {
+                    g_string_append(latex, " - ");
+                } else if (primer_coef && info->coef_rest[r][i] < 0) {
+                    g_string_append(latex, "-");
                 }
-            } else {
-                g_string_append_printf(latex, "%s%s ", num_buffer, nombre_var);
+                
+                char var_latex[64];
+                formatear_nombre_variable_latex(info->nombres_vars[i], var_latex, sizeof(var_latex));
+                
+                double coef_abs = fabs(info->coef_rest[r][i]);
+                if (fabs(coef_abs - 1.0) > EPSILON) {
+                    g_string_append_printf(latex, "%s%s", num_buffer, var_latex);
+                } else {
+                    g_string_append_printf(latex, "%s", var_latex);
+                }
+                primer_coef = 0;
             }
+        }
+        
+        if (primer_coef) {
+            g_string_append(latex, "0");
         }
         
         char rhs_buffer[32];
-        formatear_numero(info->lados_derechos[i], rhs_buffer, sizeof(rhs_buffer));
-        g_string_append_printf(latex, "&\\leq %s", rhs_buffer);
+        formatear_numero(info->lados_derechos[r], rhs_buffer, sizeof(rhs_buffer));
         
-        if (i < info->num_rest - 1) {
+        // CORRECCIÓN: Usar el símbolo correcto según el tipo de restricción
+        const char* simbolo;
+        switch (info->tipos_restricciones[r]) {
+            case RESTRICCION_LE:
+                simbolo = "\\leq";
+                break;
+            case RESTRICCION_GE:
+                simbolo = "\\geq";
+                break;
+            case RESTRICCION_EQ:
+                simbolo = "=";
+                break;
+            default:
+                simbolo = "\\leq"; // Por defecto
+                break;
+        }
+        
+        g_string_append_printf(latex, " %s %s", simbolo, rhs_buffer);
+        
+        if (r < info->num_rest - 1) {
             g_string_append(latex, " \\\\\n");
         }
     }
-    g_string_append(latex, "\n\\end{align*}\n\n");
-    g_string_append(latex, "\\textbf{Con:}\n\\[ ");
+
+    g_string_append(latex, "\n\\end{cases}\n");
+    g_string_append(latex, "\\]\n\n");
+    g_string_append(latex, "\\subsection{Restricciones de No Negatividad}\n");
+    g_string_append(latex, "\\[\n");
     for (int i = 0; i < info->num_vars; i++) {
-        const char *nombre_var = info->nombres_vars[i];
-        if (nombre_var && (nombre_var[0] == 'X' || nombre_var[0] == 'x')) {
-            int num_var = atoi(nombre_var + 1);
-            if (num_var > 0) {
-                g_string_append_printf(latex, "x_{%d} \\geq 0", num_var);
-            } else {
-                g_string_append_printf(latex, "%s \\geq 0", nombre_var);
-            }
-        } else {
-            g_string_append_printf(latex, "%s \\geq 0", nombre_var);
-        }
-        
+        char var_latex[64];
+        formatear_nombre_variable_latex(info->nombres_vars[i], var_latex, sizeof(var_latex));
+        g_string_append_printf(latex, "%s \\geq 0", var_latex);
         if (i < info->num_vars - 1) {
             g_string_append(latex, ", \\quad ");
         }
     }
-    g_string_append(latex, " \\]\n\n");
+    g_string_append(latex, "\n\\]\n\n");
 }
 
-void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaInfo *info) {
-    g_string_append_printf(latex,
-        "\\section{Tabla Inicial del Método Simplex}\n"
-        "\n"
-        "La tabla inicial del método Simplex se construye agregando variables de holgura para convertir las desigualdades en igualdades.\n\n"
-        "\\begin{center}\n"
-        "\\small\n"
-        "\\begin{tabular}{|c|");
+// Función para generar una tabla simplex en LaTeX
+void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo, int iteracion, gboolean es_final) {
+    if (!tabla || !tabla->tabla) return;
+    g_string_append_printf(latex, "\\subsection{%s}\n\n", titulo);
     
-    // Encabezados de columnas
-    g_string_append(latex, "c|"); // Z
-    for (int j = 0; j < tabla->num_vars; j++) {
-        g_string_append(latex, "c|");
+    if (iteracion >= 0) {
+        g_string_append_printf(latex, "\\textbf{Iteración:} %d\\\\\n", iteracion);
     }
-    for (int j = 0; j < tabla->num_rest; j++) {
-        g_string_append(latex, "c|");
+    g_string_append(latex, "\\textbf{Variables básicas:} ");
+    for (int i = 0; i < tabla->num_restricciones; i++) {
+        int var_base = tabla->variables_base[i];
+        char var_latex[64];
+        formatear_nombre_variable_latex(tabla->nombres_vars[var_base], var_latex, sizeof(var_latex));
+        g_string_append_printf(latex, "$%s$", var_latex);
+        if (i < tabla->num_restricciones - 1) {
+            g_string_append(latex, ", ");
+        }
     }
-    g_string_append(latex, "c|}\n\\hline\n");
-    
-    // Nombres de columnas
-    g_string_append(latex, "\\textbf{Variable} & \\textbf{Z} & ");
-    for (int j = 0; j < tabla->num_vars; j++) {
-        const char *nombre_var = info->nombres_vars[j];
-        char var_latex[32];
-        formatear_nombre_variable_tabla(nombre_var, var_latex, sizeof(var_latex));
-        g_string_append_printf(latex, "\\textbf{%s} & ", var_latex);
-    }
-    for (int j = 0; j < tabla->num_rest; j++) {
-        g_string_append_printf(latex, "\\textbf{$S_%d$} & ", j + 1);
-    }
-    g_string_append(latex, "\\textbf{b} \\\\\n\\hline\n");
-    g_string_append(latex, "\\textbf{Z} & ");
-    g_string_append(latex, "1 & "); 
-    
-    for (int j = 0; j < tabla->num_vars; j++) {
-        char num_buffer[32];
-        double valor = tabla->tabla[0][j];
-        if (fabs(valor) < 0.0001) valor = 0.0;
-        formatear_numero(valor, num_buffer, sizeof(num_buffer));
-        g_string_append_printf(latex, "%s & ", num_buffer);
-    }
-    
-    for (int j = 0; j < tabla->num_rest; j++) {
-        char num_buffer[32];
-        double valor = tabla->tabla[0][tabla->num_vars + j];
-        if (fabs(valor) < 0.0001) valor = 0.0;
-        formatear_numero(valor, num_buffer, sizeof(num_buffer));
-        g_string_append_printf(latex, "%s & ", num_buffer);
-    }
-    
-    char ld_buffer[32];
-    formatear_numero(tabla->tabla[0][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-    g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
-    
-    // Filas de restricciones
-    for (int i = 1; i <= tabla->num_rest; i++) {
-        g_string_append_printf(latex, "\\textbf{$S_%d$} & 0 & ", i);
-        
-        for (int j = 0; j < tabla->num_vars; j++) {
-            char num_buffer[32];
-            formatear_numero(tabla->tabla[i][j], num_buffer, sizeof(num_buffer));
-            g_string_append_printf(latex, "%s & ", num_buffer);
-        }
-        
-        for (int j = 0; j < tabla->num_rest; j++) {
-            if (j == i - 1) {
-                g_string_append(latex, "1 & ");
-            } else {
-                g_string_append(latex, "0 & ");
-            }
-        }
-        
-        char ld_buffer[32];
-        formatear_numero(tabla->tabla[i][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-        g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
-    }
-    
-    g_string_append(latex, "\\end{tabular}\n");
-    g_string_append(latex, "\\end{center}\n\n");
-    
-    for (int j = 0; j < tabla->num_vars; j++) {
-        const char *nombre_var = info->nombres_vars[j];
-        char var_latex[32];
-        formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-    }
-    
-    for (int j = 0; j < tabla->num_rest; j++) {
-        g_string_append_printf(latex, "\\item \\textbf{$S_%d$:} Coeficientes de las variables de holgura\n", j + 1);
-    }
-    
-    g_string_append_printf(latex,
-        "\\item \\textbf{b:} T\\'erminos independientes (lado derecho)\n"
-        "\\item \\textbf{Base inicial:} Variables de holgura $S_1, S_2, \\ldots, S_%d$\n"
-        "\\end{itemize}\n\n",
-        tabla->num_rest);
-}
-
-void generar_tablas_intermedias_latex(GString *latex, GList *tablas, ProblemaInfo *info, ResultadoSimplex *resultado) {
-    if (!tablas) return;
-    
-    g_string_append_printf(latex,
-        "\\section{Proceso Iterativo del Método Simplex}\n"
-        "\n"
-        "A continuación se detalla el proceso iterativo del algoritmo Simplex, mostrando cada tabla y las operaciones de pivoteo realizadas.\n\n");
-    
-    int iteracion = 0;
-    GList *iter = tablas;
-    
-    while (iter) {
-        TablaSimplex *tabla = (TablaSimplex*)iter->data;
-    
-        if (iteracion == 0) {
-            g_string_append_printf(latex, "\\subsection{Tabla Inicial}\n");
-        } else {
-            g_string_append_printf(latex, "\\subsection{Iteración %d}\n", iteracion);
-        }
-        
-        if (iteracion > 0 && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
-            GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
-            if (op_iter) {
-                OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
-                g_string_append_printf(latex, "\\textbf{Operación de pivoteo:}\n");
-                g_string_append_printf(latex, "\\begin{itemize}\n");
-                
-                if (op->variable_entra < tabla->num_vars) {
-                    const char *nombre_var = info->nombres_vars[op->variable_entra];
-                    char var_latex[32];
-                    formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-                    g_string_append_printf(latex, "\\item \\textbf{Variable que entra:} $%s$\n", var_latex);
-                } else {
-                    g_string_append_printf(latex, "\\item \\textbf{Variable que entra:} $S_%d$\n", 
-                                         op->variable_entra - tabla->num_vars + 1);
-                }
-                
-                if (op->variable_sale < tabla->num_vars) {
-                    const char *nombre_var = info->nombres_vars[op->variable_sale];
-                    char var_latex[32];
-                    formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-                    g_string_append_printf(latex, "\\item \\textbf{Variable que sale:} $%s$\n", var_latex);
-                } else {
-                    g_string_append_printf(latex, "\\item \\textbf{Variable que sale:} $S_%d$\n", 
-                                         op->variable_sale - tabla->num_vars + 1);
-                }
-                
-                if (op->elemento_pivote == (int)op->elemento_pivote) {
-                    g_string_append_printf(latex,
-                                    "\\item \\textbf{Elemento pivote:} %d (fila %d, columna %d)\n",
-                                    (int)op->elemento_pivote, op->fila_pivote + 1, op->columna_pivote + 1);
-                } else {
-                    g_string_append_printf(latex,
-                                    "\\item \\textbf{Elemento pivote:} %.4f (fila %d, columna %d)\n",
-                                    op->elemento_pivote, op->fila_pivote + 1, op->columna_pivote + 1);
-                }
-
-                // Mostrar información de empates de manera más limpia
-                if (op->hubo_empate) {
-                    g_string_append_printf(latex, "\\item \\textcolor{blue}{\\textbf{Empate detectado:}} %d filas con ratio mínimo\\\\\n", op->num_empates);
-                    g_string_append_printf(latex, "\\quad \\textcolor{blue}{Filas empatadas:} ");
-                    for (int i = 0; i < op->num_empates; i++) {
-                        g_string_append_printf(latex, "%d", op->filas_empatadas[i] + 1);
-                        if (i < op->num_empates - 1) {
-                            g_string_append_printf(latex, ", ");
-                        }
-                    }
-                    g_string_append_printf(latex, "\\\\\n");
-                    g_string_append_printf(latex, "\\quad \\textcolor{blue}{Selección:} Fila %d (aleatoria)\n", op->fila_pivote + 1);
-                }
-
-                g_string_append_printf(latex, "\\end{itemize}\n\n");
-            }
-        } else if (iteracion == 0) {
-            g_string_append_printf(latex, 
-                "\\textbf{Estado inicial:} Variables de holgura en la base.\\par\\smallskip\n\n");
-        }
-        
-        // Generar la tabla
-        g_string_append_printf(latex,
-            "\\begin{center}\n"
-            "\\small\n"
-            "\\begin{tabular}{|c|c|");
-        
-        // Encabezados de columnas
-        for (int j = 0; j < tabla->num_vars; j++) {
-            g_string_append(latex, "c|");
-        }
-        for (int j = 0; j < tabla->num_rest; j++) {
-            g_string_append(latex, "c|");
-        }
-        g_string_append(latex, "c|}\n\\hline\n");
-        
-        // Fila de encabezados
-        g_string_append(latex, "\\textbf{Variable} & \\textbf{Z} & ");
-        for (int j = 0; j < tabla->num_vars; j++) {
-            const char *nombre_var = info->nombres_vars[j];
-            char var_latex[32];
-            formatear_nombre_variable_tabla(nombre_var, var_latex, sizeof(var_latex));
-            g_string_append_printf(latex, "\\textbf{%s} & ", var_latex);
-        }
-        for (int j = 0; j < tabla->num_rest; j++) {
-            g_string_append_printf(latex, "\\textbf{$S_%d$} & ", j + 1);
-        }
-        g_string_append(latex, "\\textbf{b} \\\\\n\\hline\n");
-        
-        // Fila Z (función objetivo)
-        g_string_append(latex, "\\textbf{Z} & 1 & ");
-        for (int j = 0; j < tabla->num_vars; j++) {
-            char num_buffer[32];
-            double valor = tabla->tabla[0][j];
-            if (fabs(valor) < 0.0001) valor = 0.0;
-            formatear_numero(valor, num_buffer, sizeof(num_buffer));
-            
-            // Resaltar variables que pueden entrar
-            if ((tabla->tipo == MAXIMIZACION && tabla->tabla[0][j] < -EPSILON) ||
-                (tabla->tipo == MINIMIZACION && tabla->tabla[0][j] > EPSILON)) {
-                g_string_append_printf(latex, "\\textcolor{red}{%s} & ", num_buffer);
-            } else {
-                g_string_append_printf(latex, "%s & ", num_buffer);
-            }
-        }
-        
-        // Coeficientes de holgura en fila Z
-        for (int j = 0; j < tabla->num_rest; j++) {
-            char num_buffer[32];
-            formatear_numero(tabla->tabla[0][tabla->num_vars + j], num_buffer, sizeof(num_buffer));
-            g_string_append_printf(latex, "%s & ", num_buffer);
-        }
-        
-        // Valor de Z
-        char ld_buffer[32];
-        formatear_numero(tabla->tabla[0][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-        g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
-        
-        // Filas de restricciones
-        for (int i = 1; i <= tabla->num_rest; i++) {
-            const char *var_name = "S";
-            int var_index = tabla->variables_basicas[i-1];
-            gboolean es_fila_empate = FALSE;
-            
-            // Verificar si esta fila fue parte de un empate
-            if (iteracion > 0 && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
-                GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
-                if (op_iter) {
-                    OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
-                    if (op->hubo_empate && op->filas_empatadas) {
-                        for (int k = 0; k < op->num_empates; k++) {
-                            if ((i-1) == op->filas_empatadas[k]) {
-                                es_fila_empate = TRUE;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Nombre de variable básica
-            if (var_index < tabla->num_vars) {
-                var_name = info->nombres_vars[var_index];
-                char var_latex[32];
-                formatear_nombre_variable_latex(var_name, var_latex, sizeof(var_latex));
-                if (es_fila_empate) {
-                    g_string_append_printf(latex, "\\textcolor{blue}{\\textbf{$%s$}} & 0 & ", var_latex);
-                } else {
-                    g_string_append_printf(latex, "\\textbf{\\textcolor{green}{$%s$}} & 0 & ", var_latex);
-                }
-            } else {
-                if (es_fila_empate) {
-                    g_string_append_printf(latex, "\\textcolor{blue}{\\textbf{$S_%d$}} & 0 & ", var_index - tabla->num_vars + 1);
-                } else {
-                    g_string_append_printf(latex, "\\textbf{\\textcolor{green}{$S_%d$}} & 0 & ", var_index - tabla->num_vars + 1);
-                }
-            }
-            
-            // Coeficientes de la fila
-            for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
-                char num_buffer[32];
-                formatear_numero(tabla->tabla[i][j], num_buffer, sizeof(num_buffer));
-                
-                // Verificar si esta celda es el elemento pivote
-                gboolean es_elemento_pivote = FALSE;
-                if (resultado->operaciones_pivoteo && iteracion <= g_list_length(resultado->operaciones_pivoteo)) {
-                    GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
-                    if (op_iter) {
-                        OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
-                        if (i-1 == op->fila_pivote && j == op->columna_pivote) {
-                            es_elemento_pivote = TRUE;
-                        }
-                    }
-                }
-                
-                if (es_elemento_pivote) {
-                    g_string_append_printf(latex, "\\mathbf{[%s]} & ", num_buffer);
-                } else if (es_fila_empate) {
-                    g_string_append_printf(latex, "\\textcolor{blue}{%s} & ", num_buffer);
-                } else {
-                    g_string_append_printf(latex, "%s & ", num_buffer);
-                }
-            }
-            
-            // Lado derecho
-            char ld_buffer[32];
-            formatear_numero(tabla->tabla[i][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-            
-            if (es_fila_empate) {
-                g_string_append_printf(latex, "\\textcolor{blue}{%s} \\\\\n\\hline\n", ld_buffer);
-            } else {
-                g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
-            }
-        }
-        
-        g_string_append(latex, "\\end{tabular}\n");
-        g_string_append(latex, "\\end{center}\n\n");
-        
-        // Leyenda mejorada
-        gboolean hay_empates_en_esta_iteracion = FALSE;
-        if (iteracion > 0 && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
-            GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
-            if (op_iter) {
-                OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
-                hay_empates_en_esta_iteracion = op->hubo_empate;
-            }
-        }
-        
-        if (hay_empates_en_esta_iteracion) {
-            g_string_append_printf(latex, "\\noindent\\textcolor{blue}{$\\blacksquare$}\\hspace{0.5em}\\textbf{Filas en azul:} empates en la selección del pivote\\\\\n\n");
-        }
-        
-        // Variables en la base
-        g_string_append(latex, "\\textbf{Variables en la base:} ");
-        for (int i = 0; i < tabla->num_rest; i++) {
-            int var_index = tabla->variables_basicas[i];
-            gboolean es_variable_empate = FALSE;
-            
-            // Verificar si esta variable está en una fila que fue empate
-            if (hay_empates_en_esta_iteracion && resultado->operaciones_pivoteo && (iteracion - 1) < g_list_length(resultado->operaciones_pivoteo)) {
-                GList *op_iter = g_list_nth(resultado->operaciones_pivoteo, iteracion - 1);
-                if (op_iter) {
-                    OperacionPivoteo *op = (OperacionPivoteo*)op_iter->data;
-                    if (op->hubo_empate && op->filas_empatadas) {
-                        for (int k = 0; k < op->num_empates; k++) {
-                            if (i == op->filas_empatadas[k]) {
-                                es_variable_empate = TRUE;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            if (var_index < tabla->num_vars) {
-                const char *nombre_var = info->nombres_vars[var_index];
-                char var_latex[32];
-                formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-                if (es_variable_empate) {
-                    g_string_append_printf(latex, "\\textcolor{blue}{$%s$}", var_latex);
-                } else {
-                    g_string_append_printf(latex, "\\textcolor{green}{$%s$}", var_latex);
-                }
-            } else {
-                if (es_variable_empate) {
-                    g_string_append_printf(latex, "\\textcolor{blue}{$S_%d$}", var_index - tabla->num_vars + 1);
-                } else {
-                    g_string_append_printf(latex, "\\textcolor{green}{$S_%d$}", var_index - tabla->num_vars + 1);
-                }
-            }
-            if (i < tabla->num_rest - 1) {
-                g_string_append(latex, ", ");
-            }
-        }
-        g_string_append(latex, "\\\\\n\n");
-        
-        iter = g_list_next(iter);
-        iteracion++;
-    }
-}
-
-void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
-    g_string_append_printf(latex,
-        "\\section{Tabla Final}\n"
-        "\n");
-    if (!resultado->tabla_final) {
-        g_string_append(latex, "\\textbf{Error:} No se pudo generar la tabla final.\n\n");
-        return;
-    }
-    
-    if (resultado->tipo_solucion == SOLUCION_MULTIPLE) {
-        g_string_append(latex, "\\textbf{Soluciones Múltiples:} Se encontraron dos tablas finales que representan diferentes soluciones óptimas.\n\n");
-        
-        g_string_append(latex, "\\subsection{Primera Solución Óptima}\n");
-    } else {
-        g_string_append(latex, "La siguiente tabla representa la solución óptima del problema:\n\n");
-    }
-    
-    // Primera tabla final
-    TablaSimplex *tabla = resultado->tabla_final;
-    
+    g_string_append(latex, "\\\\\n\n");
     g_string_append(latex, "\\begin{center}\n");
     g_string_append(latex, "\\small\n");
     g_string_append(latex, "\\begin{tabular}{|c|");
     
-    for (int j = 0; j < tabla->num_vars; j++) {
+    for (int j = 0; j < tabla->columnas - 1; j++) {
         g_string_append(latex, "c|");
     }
-    for (int j = 0; j < tabla->num_rest; j++) {
-        g_string_append(latex, "c|");
+    g_string_append(latex, "c|}\n");
+    g_string_append(latex, "\\hline\n");
+    g_string_append(latex, "\\textbf{Base} & ");
+    for (int j = 0; j < tabla->columnas - 1; j++) {
+        char var_escape[64];
+        formatear_nombre_variable_tabla(tabla->nombres_vars[j], var_escape, sizeof(var_escape));
+        g_string_append_printf(latex, "\\textbf{%s}", var_escape);
+        
+        if (j < tabla->columnas - 2) {
+            g_string_append(latex, " & ");
+        }
     }
-    g_string_append(latex, "c|}\n\\hline\n");
-    
-    g_string_append(latex, " & ");
-    for (int j = 0; j < tabla->num_vars; j++) {
-        const char *nombre_var = info->nombres_vars[j];
-        char var_latex[32];
-        formatear_nombre_variable_tabla(nombre_var, var_latex, sizeof(var_latex));
-        g_string_append_printf(latex, "\\textbf{%s} & ", var_latex);
-    }
-    for (int j = 0; j < tabla->num_rest; j++) {
-        g_string_append_printf(latex, "\\textbf{$s_%d$} & ", j + 1);
-    }
-    g_string_append(latex, "\\textbf{L.D.} \\\\\n\\hline\n");
-    
-    g_string_append(latex, "\\textbf{Z} & ");
-    for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
+    g_string_append(latex, " & \\textbf{b} \\\\\n");
+    g_string_append(latex, "\\hline\n");
+    g_string_append(latex, "Z & ");
+    for (int j = 0; j < tabla->columnas; j++) {
+        double valor = tabla->tabla[0][j];
         char num_buffer[32];
-        formatear_numero(tabla->tabla[0][j], num_buffer, sizeof(num_buffer));
-        g_string_append_printf(latex, "%s & ", num_buffer);
-    }
-    
-    char ld_buffer[32];
-    formatear_numero(tabla->tabla[0][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-    g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
-    
-    for (int i = 1; i <= tabla->num_rest; i++) {
-        const char *var_name = "s";
-        int var_index = tabla->variables_basicas[i-1];
-        if (var_index < tabla->num_vars) {
-            var_name = info->nombres_vars[var_index];
-            char var_latex[32];
-            formatear_nombre_variable_latex(var_name, var_latex, sizeof(var_latex));
-            g_string_append_printf(latex, "\\textbf{$%s$} & ", var_latex);
+        
+        if (fabs(valor) > M_GRANDE/10) {
+            double coef_m = valor / M_GRANDE;
+            if (fabs(coef_m - round(coef_m)) < EPSILON) {
+                if (fabs(coef_m - 1.0) < EPSILON) {
+                    g_string_append_printf(latex, "M");
+                } else if (fabs(coef_m + 1.0) < EPSILON) {
+                    g_string_append_printf(latex, "-M");
+                } else {
+                    g_string_append_printf(latex, "%.0fM", coef_m);
+                }
+            } else {
+                g_string_append_printf(latex, "%.1fM", coef_m);
+            }
+        } else if (fabs(valor) < EPSILON) {
+            g_string_append(latex, "0");
         } else {
-            g_string_append_printf(latex, "\\textbf{$s_%d$} & ", var_index - tabla->num_vars + 1);
+            formatear_numero(valor, num_buffer, sizeof(num_buffer));
+            g_string_append_printf(latex, "%s", num_buffer);
         }
         
-        for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
+        if (j < tabla->columnas - 1) {
+            g_string_append(latex, " & ");
+        }
+    }
+    g_string_append(latex, " \\\\\n");
+    g_string_append(latex, "\\hline\n");
+    
+    for (int i = 1; i < tabla->filas; i++) {
+        int var_base = tabla->variables_base[i - 1];
+        char var_base_escape[64];
+        formatear_nombre_variable_tabla(tabla->nombres_vars[var_base], var_base_escape, sizeof(var_base_escape));
+        g_string_append_printf(latex, "%s & ", var_base_escape);
+        
+        for (int j = 0; j < tabla->columnas; j++) {
+            double valor = tabla->tabla[i][j];
             char num_buffer[32];
-            formatear_numero(tabla->tabla[i][j], num_buffer, sizeof(num_buffer));
-            g_string_append_printf(latex, "%s & ", num_buffer);
+            
+            if (fabs(valor) < EPSILON) {
+                g_string_append(latex, "0");
+            } else {
+                formatear_numero(valor, num_buffer, sizeof(num_buffer));
+                g_string_append_printf(latex, "%s", num_buffer);
+            }
+            
+            if (j < tabla->columnas - 1) {
+                g_string_append(latex, " & ");
+            }
         }
-        
-        char ld_buffer[32];
-        formatear_numero(tabla->tabla[i][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-        g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
+        g_string_append(latex, " \\\\\n");
+        g_string_append(latex, "\\hline\n");
     }
     
     g_string_append(latex, "\\end{tabular}\n");
     g_string_append(latex, "\\end{center}\n\n");
-    if (resultado->tipo_solucion == SOLUCION_MULTIPLE && resultado->segunda_tabla) {
-        g_string_append(latex, "\\subsection{Segunda Solución Óptima}\n");
-        
-        tabla = resultado->segunda_tabla;
-        
-        g_string_append(latex, "\\begin{center}\n");
-        g_string_append(latex, "\\small\n");
-        g_string_append(latex, "\\begin{tabular}{|c|");
-        
-        for (int j = 0; j < tabla->num_vars; j++) {
-            g_string_append(latex, "c|");
-        }
-        for (int j = 0; j < tabla->num_rest; j++) {
-            g_string_append(latex, "c|");
-        }
-        g_string_append(latex, "c|}\n\\hline\n");
-        
-        g_string_append(latex, " & ");
-        for (int j = 0; j < tabla->num_vars; j++) {
-            g_string_append_printf(latex, "\\textbf{%s} & ", info->nombres_vars[j]);
-        }
-        for (int j = 0; j < tabla->num_rest; j++) {
-            g_string_append_printf(latex, "\\textbf{$s_%d$} & ", j + 1);
-        }
-        g_string_append(latex, "\\textbf{L.D.} \\\\\n\\hline\n");
-        
-        g_string_append(latex, "\\textbf{Z} & ");
-        for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
+    
+    if (es_final) {
+        double *solucion = g_new0(double, tabla->num_vars_decision);
+        extraer_solucion(tabla, solucion);
+        g_string_append(latex, "\\textbf{Solución:}\n");
+        g_string_append(latex, "\\begin{align*}\n");
+        for (int i = 0; i < tabla->num_vars_decision; i++) {
+            char var_latex[64];
+            formatear_nombre_variable_latex(tabla->nombres_vars[i], var_latex, sizeof(var_latex));
             char num_buffer[32];
-            formatear_numero(tabla->tabla[0][j], num_buffer, sizeof(num_buffer));
-            g_string_append_printf(latex, "%s & ", num_buffer);
-        }
-        
-        char ld_buffer[32];
-        formatear_numero(tabla->tabla[0][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-        g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
-        
-        for (int i = 1; i <= tabla->num_rest; i++) {
-            const char *var_name = "s";
-            int var_index = tabla->variables_basicas[i-1];
-            if (var_index < tabla->num_vars) {
-                var_name = info->nombres_vars[var_index];
-            } else {
-                var_name = "s";
-            }
-            
-            g_string_append_printf(latex, "\\textbf{$%s$} & ", var_name);
-            for (int j = 0; j < tabla->num_vars + tabla->num_rest; j++) {
-                char num_buffer[32];
-                formatear_numero(tabla->tabla[i][j], num_buffer, sizeof(num_buffer));
-                g_string_append_printf(latex, "%s & ", num_buffer);
-            }
-            
-            char ld_buffer[32];
-            formatear_numero(tabla->tabla[i][tabla->num_vars + tabla->num_rest], ld_buffer, sizeof(ld_buffer));
-            g_string_append_printf(latex, "%s \\\\\n\\hline\n", ld_buffer);
-        }
-        
-        g_string_append(latex, "\\end{tabular}\n");
-        g_string_append(latex, "\\end{center}\n\n");
-    }
-}
-
-void generar_explicacion_soluciones_multiples_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
-    if (resultado->tipo_solucion != SOLUCION_MULTIPLE) return;
-    
-    g_string_append_printf(latex,
-        "\\subsection{Explicación de Soluciones Múltiples}\n"
-        "\n"
-        "Cuando un problema de programación lineal tiene soluciones múltiples, significa que existe más de una combinación de valores para las variables de decisión que produce el mismo valor óptimo de la función objetivo.\n\n"
-        "\\textbf{Condición para soluciones múltiples:}\n"
-        "\\begin{itemize}\n"
-        "\\item Al menos una variable no básica tiene coeficiente cero en la fila Z de la tabla óptima\n"
-        "\\item Esto indica que podemos introducir esa variable en la base sin cambiar el valor de Z\n"
-        "\\item El conjunto de soluciones óptimas forma un segmento de recta (en 2D) o un hiperplano (en nD)\n"
-        "\\end{itemize}\n\n"
-        "\\textbf{Ecuación para generar todas las soluciones óptimas:}\n"
-        "\\[\n"
-        "X = \\lambda X_1 + (1-\\lambda) X_2, \\quad 0 \\leq \\lambda \\leq 1\n"
-        "\\]\n"
-        "Donde $X_1$ y $X_2$ son las dos soluciones básicas encontradas y $\\lambda$ es un parámetro entre 0 y 1.\n\n");
-}
-
-void generar_explicacion_no_acotado_latex(GString *latex) {
-    g_string_append_printf(latex,
-        "\\subsection{Explicación del Problema No Acotado}\n"
-        "\n"
-        "Un problema de programación lineal se considera \\textbf{no acotado} cuando la función objetivo puede mejorar indefinidamente sin violar ninguna restricción.\n\n"
-        "\\textbf{Condiciones para no acotamiento:}\n"
-        "\\begin{itemize}\n"
-        "\\item Existe al menos una variable que puede aumentar indefinidamente\n"
-        "\\item Todos los coeficientes en la columna pivote son negativos o cero\n"
-        "\\item No hay restricciones que limiten el crecimiento de la variable\n"
-        "\\end{itemize}\n\n"
-        "\\textbf{Interpretación práctica:}\n"
-        "\\begin{itemize}\n"
-        "\\item En problemas de maximización: La ganancia puede ser infinita\n"
-        "\\item En problemas de minimización: El costo puede disminuir indefinidamente\n"
-        "\\item Suele indicar un error en la formulación del problema\n"
-        "\\item Puede significar que faltan restricciones importantes\n"
-        "\\end{itemize}\n\n"
-        "\\textbf{Solución:} Revisar la formulación del problema y verificar que todas las restricciones necesarias estén incluidas.\n\n");
-}
-
-void generar_explicacion_degenerado_latex(GString *latex, ResultadoSimplex *resultado) {
-    g_string_append_printf(latex,
-        "\\subsection{Explicación del Problema Degenerado}\n"
-        "\n"
-        "Un problema de programación lineal se considera \\textbf{degenerado} cuando al menos una variable básica toma el valor cero en la solución óptima.\n\n"
-        "\\textbf{Características de la degeneración:}\n"
-        "\\begin{itemize}\n"
-        "\\item Al menos una variable básica tiene valor cero\n"
-        "\\item Puede ocurrir cuando hay restricciones redundantes\n"
-        "\\item Puede llevar a ciclado en el algoritmo Simplex (aunque es raro en la práctica)\n"
-        "\\item La solución óptima puede no ser única\n"
-        "\\item En problemas prácticos, la degeneración es común pero generalmente no afecta la calidad de la solución\n"
-        "\\end{itemize}\n\n"
-        "\\textbf{Causas comunes:}\n"
-        "\\begin{itemize}\n"
-        "\\item Restricciones redundantes en el modelo\n"
-        "\\item Múltiples restricciones que se intersectan en el mismo punto\n"
-        "\\item Problemas con estructura especial que genera empates en la selección de variables\n"
-        "\\end{itemize}\n\n"
-        "\\textbf{Manejo en el algoritmo Simplex:}\n"
-        "\\begin{itemize}\n"
-        "\\item Se utiliza una tolerancia numérica ($\\\\epsilon = 10^{-10}$) para detectar valores cero\n"
-        "\\item Cuando hay empates en la regla del ratio mínimo, se elige arbitrariamente\n"
-        "\\item La elección arbitraria evita el ciclado en la mayoría de los casos prácticos\n"
-        "\\item En este problema se realizaron %d iteraciones sin ciclado\n"
-        "\\end{itemize}\n\n"
-        "\\textbf{Implicaciones prácticas:}\n"
-        "\\begin{itemize}\n"
-        "\\item La solución encontrada es válida y óptima\n"
-        "\\item Puede existir más de una solución óptima (soluciones alternativas)\n"
-        "\\item En aplicaciones prácticas, la degeneración generalmente no es problemática\n"
-        "\\item Si es necesario, se pueden usar técnicas anti-ciclado (regla de Bland)\n"
-        "\\end{itemize}\n\n",
-        resultado->iteraciones);
-}
-
-void generar_soluciones_adicionales_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
-    if (resultado->tipo_solucion != SOLUCION_MULTIPLE || !resultado->soluciones_adicionales) return;
-    
-    g_string_append_printf(latex,
-        "\\subsection{Soluciones Adicionales}\n"
-        "\n"
-        "A continuación se presentan 3 soluciones adicionales obtenidas como combinaciones convexas de las dos soluciones básicas:\n\n");
-    
-    for (int k = 0; k < resultado->num_soluciones_adicionales; k++) {
-        double lambda = (k + 1) * 0.25;
-        
-        g_string_append_printf(latex,
-            "\\subsubsection{Solución con $\\lambda = %.2f$}\n"
-            "\\begin{align*}\n", lambda);
-        
-        for (int i = 0; i < info->num_vars; i++) {
-            char sol_buffer[32];
-            formatear_numero(resultado->soluciones_adicionales[k][i], sol_buffer, sizeof(sol_buffer));
-            const char *nombre_var = info->nombres_vars[i];
-            char var_latex[32];
-            formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-            
-            g_string_append_printf(latex, "%s &= %s", var_latex, sol_buffer);
-            if (i < info->num_vars - 1) {
+            formatear_numero(solucion[i], num_buffer, sizeof(num_buffer));
+            g_string_append_printf(latex, "%s &= %s", var_latex, num_buffer);
+            if (i < tabla->num_vars_decision - 1) {
                 g_string_append(latex, " \\\\\n");
             }
         }
         g_string_append(latex, "\n\\end{align*}\n\n");
         
-        double z_calculado = 0.0;
-        for (int i = 0; i < info->num_vars; i++) {
-            z_calculado += info->coef_obj[i] * resultado->soluciones_adicionales[k][i];
-        }
-        
-        char z_buffer[32];
-        formatear_numero(z_calculado, z_buffer, sizeof(z_buffer));
-        g_string_append_printf(latex, "\\textbf{Verificación: } $Z = %s$ (mismo valor óptimo)\\par\\smallskip\n\n", z_buffer);
+        g_free(solucion);
     }
 }
 
-void generar_solucion_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
-    g_string_append_printf(latex,
-        "\\section{Solución Óptima}\n"
-        "\n");
-    
-    char valor_optimo_buffer[32];
-    formatear_numero(resultado->valor_optimo, valor_optimo_buffer, sizeof(valor_optimo_buffer));
-    g_string_append_printf(latex, "\\textbf{Valor óptimo de la función objetivo: } $Z = %s$\n\n", valor_optimo_buffer);
-    g_string_append(latex, "\\textbf{Valores de las variables:}\n\\begin{align*}\n");
-    
-    for (int i = 0; i < info->num_vars; i++) {
-        char sol_buffer[32];
-        formatear_numero(resultado->solucion[i], sol_buffer, sizeof(sol_buffer));
-        const char *nombre_var = info->nombres_vars[i];
-        char var_latex[32];
-        formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
+// Función para generar la tabla inicial
+void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaInfo *info) {
+    generar_tabla_latex(latex, tabla, "Tabla Inicial del Método Simplex", -1, FALSE);
+    if (tabla->num_vars_artificiales > 0) {
+        g_string_append(latex, "\\textbf{Nota:} Se utilizó el método de la Gran M con ");
+        g_string_append_printf(latex, "$M = %.0f$\\\\\n", M_GRANDE);
+        g_string_append(latex, "\\textbf{Variables artificiales:} ");
         
-        g_string_append_printf(latex, "%s &= %s", var_latex, sol_buffer);
-        if (i < info->num_vars - 1) {
-            g_string_append(latex, " \\\\\n");
+        int primera = 1;
+        for (int i = tabla->num_vars_decision + tabla->num_vars_holgura + tabla->num_vars_exceso;
+             i < tabla->num_vars_decision + tabla->num_vars_holgura + 
+                 tabla->num_vars_exceso + tabla->num_vars_artificiales; i++) {
+            if (!primera) g_string_append(latex, ", ");
+            char var_latex[64];
+            formatear_nombre_variable_latex(tabla->nombres_vars[i], var_latex, sizeof(var_latex));
+            g_string_append_printf(latex, "$%s$", var_latex);
+            primera = 0;
         }
+        g_string_append(latex, "\\\\\n\n");
     }
-    
-    if (resultado->tabla_final) {
-        TablaSimplex *tabla_final = resultado->tabla_final;
-        gboolean *holgura_mostrada = g_new0(gboolean, tabla_final->num_rest);
-        
-        for (int i = 0; i < tabla_final->num_rest; i++) {
-            int var_index = tabla_final->variables_basicas[i];
-            if (var_index >= tabla_final->num_vars) {
-                int indice_holgura = var_index - tabla_final->num_vars;
-                double valor_holgura = tabla_final->tabla[i + 1][tabla_final->num_vars + tabla_final->num_rest];
-                
-                char sol_buffer[32];
-                formatear_numero(valor_holgura, sol_buffer, sizeof(sol_buffer));
-                if (fabs(valor_holgura) < EPSILON) {
-                    g_string_append_printf(latex, " \\\\\n\\textcolor{red}{S_%d} &= \\textcolor{red}{%s} \\quad \\text{(degenerada)}", 
-                                         indice_holgura + 1, sol_buffer);
-                } else {
-                    g_string_append_printf(latex, " \\\\\nS_%d &= %s", indice_holgura + 1, sol_buffer);
-                }
-                holgura_mostrada[indice_holgura] = TRUE;
-            }
-        }
-        
-        for (int i = 0; i < tabla_final->num_rest; i++) {
-            if (!holgura_mostrada[i]) {
-                g_string_append_printf(latex, " \\\\\nS_%d &= 0", i + 1);
-            }
-        }
-        
-        g_free(holgura_mostrada);
+}
+
+// Función para generar tablas intermedias
+void generar_tablas_intermedias_latex(GString *latex, TablaSimplex **tablas, int num_tablas, ProblemaInfo *info, ResultadoSimplex *resultado) {
+    if (!tablas || num_tablas <= 1) return;
+    g_string_append(latex, "\\section{Iteraciones del Método Simplex}\n\n");
+    for (int i = 1; i < num_tablas - 1; i++) {
+        generar_tabla_latex(latex, tablas[i], "Tabla Intermedia", i, FALSE);
     }
-    
-    g_string_append(latex, "\n\\end{align*}\n\n");
-    
+}
+
+// Función para generar la tabla final
+void generar_tabla_final_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
+    if (!resultado || !resultado->tablas_intermedias || resultado->num_tablas == 0) return;
+    TablaSimplex *tabla_final = resultado->tablas_intermedias[resultado->num_tablas - 1];
+    generar_tabla_latex(latex, tabla_final, "Tabla Final - Solución Óptima", -1, TRUE);
     switch (resultado->tipo_solucion) {
-        case SOLUCION_UNICA:
-            g_string_append(latex, "\\textbf{Tipo:} Solución Única\n\n");
-            g_string_append(latex, "El problema tiene una única solución óptima en el punto encontrado.\n\n");
+        case SOLUCION_OPTIMA:
+            if (resultado->es_degenerado) {
+                g_string_append(latex, "\\textbf{Problema Degenerado:} Al menos una variable básica tiene valor cero.\\\\\n");
+            }
             break;
             
         case SOLUCION_MULTIPLE:
-            g_string_append(latex, "\\textbf{Tipo:} Soluciones Múltiples\n\n");
-            generar_explicacion_soluciones_multiples_latex(latex, resultado, info);
-            generar_soluciones_adicionales_latex(latex, resultado, info);
+            g_string_append(latex, "\\textbf{Solución Múltiple:} Existen infinitas soluciones óptimas.\\\\\n");
             break;
             
-        case NO_ACOTADO:
-            g_string_append(latex, "\\textbf{Tipo:} Problema No Acotado\n\n");
-            generar_explicacion_no_acotado_latex(latex);
+        case SOLUCION_NO_ACOTADA:
+            g_string_append(latex, "\\textbf{Problema No Acotado:} La función objetivo puede mejorar indefinidamente.\\\\\n");
             break;
             
-        case DEGENERADO:
-            g_string_append(latex, "\\textbf{Tipo:} Problema Degenerado\n\n");
-            generar_explicacion_degenerado_latex(latex, resultado);
-            
-            if (resultado->tabla_final) {
-                g_string_append(latex, "\\textbf{Variables básicas con valor cero (degeneradas):}\n\\begin{itemize}\n");
-                TablaSimplex *tabla = resultado->tabla_final;
-                for (int i = 0; i < tabla->num_rest; i++) {
-                    double valor = tabla->tabla[i + 1][tabla->num_vars + tabla->num_rest];
-                    if (fabs(valor) < EPSILON) {
-                        int var_index = tabla->variables_basicas[i];
-                        if (var_index < tabla->num_vars) {
-                            const char *nombre_var = info->nombres_vars[var_index];
-                            char var_latex[32];
-                            formatear_nombre_variable_latex(nombre_var, var_latex, sizeof(var_latex));
-                            g_string_append_printf(latex, "\\item $%s = 0$\n", var_latex);
-                        } else {
-                            g_string_append_printf(latex, "\\item $S_%d = 0$\n", var_index - tabla->num_vars + 1);
-                        }
-                    }
-                }
-                g_string_append(latex, "\\end{itemize}\n\n");
-            }
-            break;
-            
-        case NO_FACTIBLE:
-            g_string_append(latex, "\\textbf{Tipo:} Problema No Factible\n\n");
-            g_string_append(latex, "El problema no tiene solución factible. El conjunto de restricciones es incompatible.\n\n");
+        case SOLUCION_NO_FACTIBLE:
+            g_string_append(latex, "\\textbf{Problema No Factible:} No existe solución que satisfaga todas las restricciones.\\\\\n");
             break;
     }
+    
+    g_string_append(latex, "\n");
+}
 
-    g_string_append_printf(latex, "\\textbf{Iteraciones realizadas:} %d\n\n", resultado->iteraciones);
+// Función para generar solución múltiple
+void generar_solucion_multiple_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
+    if (resultado->tipo_solucion != SOLUCION_MULTIPLE) return;
+    
+    g_string_append(latex, "\\section{Solución Múltiple}\n\n");
+    g_string_append(latex, "El problema tiene infinitas soluciones óptimas.\\\\\n");
+    
+    if (resultado->segunda_tabla) {
+        g_string_append(latex, "\\subsection{Segunda Tabla Óptima}\n\n");
+        generar_tabla_latex(latex, resultado->segunda_tabla, "Segunda Solución Básica Óptima", -1, TRUE);
+    }
+    
+    g_string_append(latex, "\\subsection{Explicación de Soluciones Múltiples}\n\n");
+    g_string_append(latex, "Cuando un problema de programación lineal tiene soluciones múltiples, significa que existe más de una combinación de valores para las variables de decisión que produce el mismo valor óptimo de la función objetivo.\n\n");
+    g_string_append(latex, "\\textbf{Condición para soluciones múltiples:}\n");
+    g_string_append(latex, "\\begin{itemize}\n");
+    g_string_append(latex, "\\item Al menos una variable no básica tiene coeficiente cero en la fila Z de la tabla óptima\n");
+    g_string_append(latex, "\\item Esto indica que podemos introducir esa variable en la base sin cambiar el valor de Z\n");
+    g_string_append(latex, "\\item El conjunto de soluciones óptimas forma un segmento de recta (en 2D) o un hiperplano (en nD)\n");
+    g_string_append(latex, "\\end{itemize}\n\n");
+    
+    if (resultado->soluciones_adicionales && resultado->num_soluciones_adicionales > 0) {
+        g_string_append(latex, "\\subsection{Soluciones Adicionales}\n\n");
+        g_string_append(latex, "A continuación se presentan soluciones adicionales obtenidas como combinaciones convexas:\n\n");
+        
+        for (int k = 0; k < resultado->num_soluciones_adicionales; k++) {
+            g_string_append_printf(latex, "\\subsubsection{Solución %d}\n", k + 1);
+            g_string_append(latex, "\\begin{align*}\n");
+            
+            for (int i = 0; i < info->num_vars; i++) {
+                char sol_buffer[32];
+                formatear_numero(resultado->soluciones_adicionales[k][i], sol_buffer, sizeof(sol_buffer));
+                char var_latex[64];
+                formatear_nombre_variable_latex(info->nombres_vars[i], var_latex, sizeof(var_latex));
+                
+                g_string_append_printf(latex, "%s &= %s", var_latex, sol_buffer);
+                if (i < info->num_vars - 1) {
+                    g_string_append(latex, " \\\\\n");
+                }
+            }
+            g_string_append(latex, "\n\\end{align*}\n\n");
+            double z_adicional = 0.0;
+            for (int i = 0; i < info->num_vars; i++) {
+                z_adicional += info->coef_obj[i] * resultado->soluciones_adicionales[k][i];
+            }
+            char z_buffer[32];
+            formatear_numero(z_adicional, z_buffer, sizeof(z_buffer));
+            g_string_append_printf(latex, "\\textbf{Valor de Z:} $%s$ (mismo valor óptimo)\\\\\n\n", z_buffer);
+        }
+    }
+}
+
+
+// Función para generar explicación de problemas especiales
+static void generar_explicacion_problemas_especiales_latex(GString *latex, ResultadoSimplex *resultado) {
+    switch (resultado->tipo_solucion) {
+        case SOLUCION_NO_ACOTADA:
+            g_string_append(latex, "\\subsection{Explicación del Problema No Acotado}\n\n");
+            g_string_append(latex, "Un problema de programación lineal se considera \\textbf{no acotado} cuando la función objetivo puede mejorar indefinidamente sin violar ninguna restricción.\n\n");
+            g_string_append(latex, "\\textbf{Condiciones para no acotamiento:}\n");
+            g_string_append(latex, "\\begin{itemize}\n");
+            g_string_append(latex, "\\item Existe al menos una variable que puede aumentar indefinidamente\n");
+            g_string_append(latex, "\\item Todos los coeficientes en la columna pivote son negativos o cero\n");
+            g_string_append(latex, "\\item No hay restricciones que limiten el crecimiento de la variable\n");
+            g_string_append(latex, "\\end{itemize}\n\n");
+            break;
+            
+        case SOLUCION_NO_FACTIBLE:
+            g_string_append(latex, "\\subsection{Explicación del Problema No Factible}\n\n");
+            g_string_append(latex, "Un problema de programación lineal se considera \\textbf{no factible} cuando no existe ninguna solución que satisfaga todas las restricciones simultáneamente.\n\n");
+            g_string_append(latex, "\\textbf{Causas comunes:}\n");
+            g_string_append(latex, "\\begin{itemize}\n");
+            g_string_append(latex, "\\item Restricciones contradictorias\n");
+            g_string_append(latex, "\\item Región factible vacía\n");
+            g_string_append(latex, "\\item Variables artificiales permanecen en la base con valor positivo\n");
+            g_string_append(latex, "\\end{itemize}\n\n");
+            break;
+            
+        default:
+            break;
+    }
+}
+
+// Función para generar conclusión
+void generar_conclusion_latex(GString *latex, ResultadoSimplex *resultado, ProblemaInfo *info) {
+    g_string_append(latex, "\\section{Conclusión}\n\n");
+    
+    switch (resultado->tipo_solucion) {
+        case SOLUCION_OPTIMA:
+            g_string_append(latex, "El problema tiene una \\textbf{solución óptima única}.\\\\\n");
+            g_string_append_printf(latex, "El valor óptimo de la función objetivo es: \\textbf{Z = %.2f}\\\\\n", 
+                                  resultado->valor_z);
+            break;
+            
+        case SOLUCION_MULTIPLE:
+            g_string_append(latex, "El problema tiene \\textbf{múltiples soluciones óptimas}.\\\\\n");
+            g_string_append_printf(latex, "El valor óptimo de la función objetivo es: \\textbf{Z = %.2f}\\\\\n", 
+                                  resultado->valor_z);
+            g_string_append(latex, "Existen infinitos puntos que alcanzan este valor óptimo.\\\\\n");
+            break;
+            
+        case SOLUCION_NO_ACOTADA:
+            g_string_append(latex, "El problema es \\textbf{no acotado}.\\\\\n");
+            g_string_append(latex, "La función objetivo puede mejorar indefinidamente sin violar las restricciones.\\\\\n");
+            break;
+            
+        case SOLUCION_NO_FACTIBLE:
+            g_string_append(latex, "El problema es \\textbf{no factible}.\\\\\n");
+            g_string_append(latex, "No existe ninguna solución que satisfaga todas las restricciones simultáneamente.\\\\\n");
+            break;
+    }
     
     if (resultado->mensaje) {
-        g_string_append_printf(latex, "\\textbf{Observaciones:} %s\n\n", resultado->mensaje);
+        char *mensaje_escape = escape_latex(resultado->mensaje);
+        g_string_append_printf(latex, "\\textbf{Mensaje:} %s\\\\\n", mensaje_escape);
+        g_free(mensaje_escape);
     }
+    
+    g_string_append(latex, "\n\\textbf{Recomendaciones:}\n");
+    g_string_append(latex, "\\begin{itemize}\n");
+    
+    switch (resultado->tipo_solucion) {
+        case SOLUCION_OPTIMA:
+            g_string_append(latex, "\\item La solución encontrada es óptima y puede implementarse directamente.\n");
+            if (resultado->es_degenerado) {
+                g_string_append(latex, "\\item Aunque el problema es degenerado, la solución sigue siendo válida.\n");
+            }
+            break;
+        case SOLUCION_MULTIPLE:
+            g_string_append(latex, "\\item Se pueden elegir diferentes soluciones según criterios adicionales.\n");
+            g_string_append(latex, "\\item Considere factores externos para seleccionar la solución más apropiada.\n");
+            break;
+        case SOLUCION_NO_ACOTADA:
+            g_string_append(latex, "\\item Revise la formulación del problema.\n");
+            g_string_append(latex, "\\item Posiblemente falten restricciones importantes.\n");
+            break;
+        case SOLUCION_NO_FACTIBLE:
+            g_string_append(latex, "\\item Revise las restricciones del problema.\n");
+            g_string_append(latex, "\\item Puede haber conflictos entre las restricciones.\n");
+            break;
+    }
+    
+    g_string_append(latex, "\\end{itemize}\n\n");
 }
-void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info, 
-                            const char *nombre_archivo, gboolean mostrar_tablas) {
+
+// Función principal para generar el documento LaTeX completo
+void generar_documento_latex(ResultadoSimplex *resultado, ProblemaInfo *info, const char *nombre_archivo, gboolean mostrar_tablas) {
+    FILE *archivo = fopen(nombre_archivo, "w");
+    if (!archivo) {
+        g_printerr("Error: No se pudo abrir el archivo %s para escritura\n", nombre_archivo);
+        return;
+    }
+    
     GString *latex = g_string_new("");
-    
-    g_string_append_printf(latex,
-        "\\documentclass[12pt]{article}\n"
-        "\\usepackage[utf8]{inputenc}\n"
-        "\\usepackage[spanish]{babel}\n"
-        "\\usepackage{amsmath,amssymb}\n"
-        "\\usepackage{booktabs}\n"
-        "\\usepackage{xcolor}\n"
-        "\\usepackage{graphicx}\n" 
-        "\\usepackage{geometry}\n"
-        "\\geometry{margin=2.5cm}\n"
-        "\\usepackage{fancyhdr}\n"
-        "\\setlength{\\headheight}{14.5pt}\n"
-        "\\pagestyle{fancy}\n"
-        "\\fancyhf{}\n"
-        "\\rhead{Investigación de Operaciones}\n"
-        "\\lhead{Método Simplex}\n"
-        "\n"
-        "\\definecolor{basecolor}{RGB}{0,128,0}\n"
-        "\\definecolor{entracolor}{RGB}{255,0,0}\n"
-        "\\definecolor{entracolor}{RGB}{0,0,255}\n"
-        "\\definecolor{empatecolor}{RGB}{0,0,200}\n"  
-        "\\definecolor{pivotecolor}{RGB}{200,0,200}\n"
-        "\n"
-        "\\title{Resultados del Método Simplex\\\\\n"
-        "\\large Problema: \\textbf{%s}}\n"
-        "\\author{\n"
-        "Emily Sánchez\\\\\n"
-        "Viviana Vargas\\\\\n"
-        "\\\\\n"
-        "Curso: Investigación de Operaciones\\\\\n"
-        "Semestre II: 2025\n"
-        "}\n"
-        "\\date{\\today}\n"
-        "\n"
-        "\\begin{document}\n"
-        "\n"
-        "\\maketitle\n"
-        "\\thispagestyle{empty}\n"
-        "\n"
-        "\\newpage\n"
-        "\\tableofcontents\n"
-        "\\newpage\n",
-        info->nombre_problema ? info->nombre_problema : "Optimización");
-    
+    generar_portada_latex(latex, info->nombre_problema);
     generar_algoritmo_simplex_latex(latex);
     generar_problema_original_latex(latex, info);
-    
-    if (resultado->tablas_intermedias) {
-        TablaSimplex *tabla_inicial = (TablaSimplex*)g_list_first(resultado->tablas_intermedias)->data;
-        generar_tabla_inicial_latex(latex, tabla_inicial, info);
-    } else if (resultado->tabla_final) {
-        generar_tabla_inicial_latex(latex, resultado->tabla_final, info);
-    }
-
-    if (mostrar_tablas && resultado->tablas_intermedias) {
-        generar_tablas_intermedias_latex(latex, resultado->tablas_intermedias, info, resultado);
+    g_string_append(latex, "\\section{Método de Solución}\n\n");
+    gboolean uso_gran_m = FALSE;
+    if (resultado->tablas_intermedias && resultado->num_tablas > 0) {
+        TablaSimplex *primera_tabla = resultado->tablas_intermedias[0];
+        if (primera_tabla->num_vars_artificiales > 0) {
+            uso_gran_m = TRUE;
+        }
     }
     
-    generar_tabla_final_latex(latex, resultado, info);
-    
-    if (resultado->tipo_solucion != NO_ACOTADO) {
-        generar_solucion_latex(latex, resultado, info);
+    if (uso_gran_m) {
+        g_string_append(latex, "Se utilizó el \\textbf{método de la Gran M} debido a la presencia ");
+        g_string_append(latex, "de restricciones de tipo $\\geq$ o $=$.\n\n");
+        
+        g_string_append(latex, "\\begin{itemize}\n");
+        g_string_append_printf(latex, "\\item Valor de M utilizado: $\\mathbf{%.0f}$\n", M_GRANDE);
+        g_string_append(latex, "\\item Se introdujeron variables artificiales para las restricciones relevantes\n");
+        g_string_append(latex, "\\item El método garantiza encontrar una solución factible si existe\n");
+        g_string_append(latex, "\\end{itemize}\n\n");
     } else {
-        g_string_append_printf(latex,
-            "\\section{Solución Óptima}\n"
-            "\n");
-        g_string_append(latex, "\\textbf{PROBLEMA NO ACOTADO}\n\n");
-        generar_explicacion_no_acotado_latex(latex);
+        g_string_append(latex, "Se utilizó el \\textbf{método simplex estándar}.\n\n");
+        
+        g_string_append(latex, "\\begin{itemize}\n");
+        g_string_append(latex, "\\item Todas las restricciones son del tipo $\\leq$\n");
+        g_string_append(latex, "\\item Se introdujeron variables de holgura\n");
+        g_string_append(latex, "\\item No fue necesario utilizar el método de la Gran M\n");
+        g_string_append(latex, "\\end{itemize}\n\n");
     }
     
+    if (resultado->tablas_intermedias && resultado->num_tablas > 0) {
+        generar_tabla_inicial_latex(latex, resultado->tablas_intermedias[0], info);
+    }
+    
+    if (mostrar_tablas && resultado->tablas_intermedias && resultado->num_tablas > 1) {
+        generar_tablas_intermedias_latex(latex, resultado->tablas_intermedias, resultado->num_tablas, info, resultado);
+    }
+    
+    if (resultado->tablas_intermedias && resultado->num_tablas > 0) {
+        generar_tabla_final_latex(latex, resultado, info);
+    }
+    
+    g_string_append(latex, "\\section{Resultados}\n\n");
+    g_string_append(latex, "\\subsection{Solución Encontrada}\n\n");
+    if (resultado->tipo_solucion == SOLUCION_OPTIMA || resultado->tipo_solucion == SOLUCION_MULTIPLE) {
+        g_string_append_printf(latex, "\\textbf{Valor óptimo de Z:} $\\mathbf{%.2f}$\\\\\n\n", resultado->valor_z);
+        
+        g_string_append(latex, "\\textbf{Valores de las variables de decisión:}\\\\\n");
+        g_string_append(latex, "\\begin{align*}\n");
+        for (int i = 0; i < info->num_vars; i++) {
+            char var_latex[64];
+            formatear_nombre_variable_latex(info->nombres_vars[i], var_latex, sizeof(var_latex));
+            char num_buffer[32];
+            formatear_numero(resultado->solucion[i], num_buffer, sizeof(num_buffer));
+            g_string_append_printf(latex, "%s &= %s", var_latex, num_buffer);
+            if (i < info->num_vars - 1) {
+                g_string_append(latex, " \\\\\n");
+            }
+        }
+        g_string_append(latex, "\n\\end{align*}\n\n");
+    }
+    
+    if (resultado->tipo_solucion == SOLUCION_MULTIPLE) {
+        generar_solucion_multiple_latex(latex, resultado, info);
+    }
+    
+    generar_explicacion_problemas_especiales_latex(latex, resultado);
+    generar_conclusion_latex(latex, resultado, info);
     g_string_append(latex, "\\end{document}\n");
-    
-    FILE *archivo = fopen(nombre_archivo, "w");
-    if (archivo) {
-        fprintf(archivo, "%s", latex->str);
-        fclose(archivo);
-        g_print("Archivo LaTeX guardado: %s\n", nombre_archivo);
-    } else {
-        g_printerr("Error al guardar archivo LaTeX: %s\n", nombre_archivo);
-    }
+    fwrite(latex->str, 1, latex->len, archivo);
+    fclose(archivo);
     
     g_string_free(latex, TRUE);
+    
+    g_print("Archivo LaTeX generado: %s\n", nombre_archivo);
 }
 
-
+// Función para compilar y mostrar el PDF
 void compilar_y_mostrar_pdf(const char *nombre_archivo_tex, const char *nombre_archivo_pdf) {
-    char comando1[512];
-    char comando2[512];
-    char comando3[512];
+    char comando[2048];
     system("mkdir -p ProblemasSimplex");
-    snprintf(comando3, sizeof(comando3), "mv %s ProblemasSimplex/ 2>/dev/null", nombre_archivo_tex);
-    system(comando3);
-    snprintf(comando1, sizeof(comando1), "cd ProblemasSimplex && pdflatex -interaction=nonstopmode %s", nombre_archivo_tex);
-    int result1 = system(comando1);
-    int result2 = system(comando1); 
-    
+
+    char comando_mover[512];
+    snprintf(comando_mover, sizeof(comando_mover),
+             "mv %s ProblemasSimplex/ 2>/dev/null", nombre_archivo_tex);
+    system(comando_mover);
+
+    snprintf(comando, sizeof(comando),
+             "cd ProblemasSimplex && pdflatex -interaction=nonstopmode %s > /dev/null 2>&1",
+             nombre_archivo_tex);
+
+    int result1 = system(comando);
+    int result2 = system(comando);
+
     if (result1 != 0 || result2 != 0) {
-        g_printerr("Error al compilar el archivo LaTeX\n");
+        g_printerr("Advertencia: Puede haber errores en la compilación LaTeX\n");
     }
-    
-    snprintf(comando2, sizeof(comando2), "cd ProblemasSimplex && if [ -f %s ]; then evince --presentation %s & fi", nombre_archivo_pdf, nombre_archivo_pdf);
-    system(comando2);
+
+    char nombre_base[256];
+    size_t len = strlen(nombre_archivo_tex);
+
+    if (len > 4) {
+        size_t base_len = len - 4;
+        if (base_len >= sizeof(nombre_base))
+            base_len = sizeof(nombre_base) - 1;
+
+        strncpy(nombre_base, nombre_archivo_tex, base_len);
+        nombre_base[base_len] = '\0';
+
+        snprintf(comando, sizeof(comando),
+                 "cd ProblemasSimplex && rm -f %s.{aux,log,out,toc}",
+                 nombre_base);
+
+        system(comando);
+    }
+
+    snprintf(comando, sizeof(comando),
+             "cd ProblemasSimplex && if [ -f %s ]; then evince --presentation %s > /dev/null 2>&1 & fi",
+             nombre_archivo_pdf, nombre_archivo_pdf);
+    system(comando);
+
+    g_print("PDF generado y abierto: ProblemasSimplex/%s\n", nombre_archivo_pdf);
 }
