@@ -1,0 +1,8 @@
+NAME,prueba4
+TYPE,MAX
+N,3
+VARS,X1,X2,X3
+M,2
+Z,2,3,-5
+R,1,1,1,=,7
+R,2,-5,1,>=,10

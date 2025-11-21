@@ -1,0 +1,224 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\definecolor{basecolor}{RGB}{0,128,0}
+\definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{PanaderiaBreadCo}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre II: 2025
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\begin{center}
+\textbf{George Dantzig (1914-2005)}
+\\
+Creador del Método Simplex
+\end{center}
+\vfill
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\
+
+Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal. Usa operaciones sobre matrices hasta encontrar la solución óptima o determinar que el problema no tiene solución. Parte de un vértice de la región factible y "salta" a vértices adyacentes que mejoren lo encontrado hasta encontrar la condición de salida.
+
+\subsection{Método de la Gran M}
+El método de la Gran M se utiliza cuando el problema tiene restricciones de tipo $\geq$ o $=$ que requieren variables artificiales. Se asigna un coeficiente $M$ muy grande en la función objetivo para las variables artificiales, donde:
+\begin{itemize}
+\item Para \textbf{maximización}: $M$ es negativo grande ($-M$)
+\item Para \textbf{minimización}: $M$ es positivo grande ($+M$)
+\item El valor de $M$ utilizado es: $1000000$
+\end{itemize}
+Esto fuerza a las variables artificiales a salir de la base en la solución óptima.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos
+\item \textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteración
+\end{itemize}
+
+\section{Formulación del Problema}
+
+\textbf{Problema:} PanaderiaBreadCo\\
+\textbf{Tipo:} Maximización\\
+\textbf{Número de variables:} 4\\
+\textbf{Número de restricciones:} 2
+
+\subsection{Función Objetivo}
+\[
+Maximizar Z = 36x_{1} + 30x_{2} - -3x_{3} - -4x_{4}
+\]
+
+\subsection{Restricciones}
+\[
+\begin{cases}
+x_{1} + x_{2} - x_{3} \leq 5 \\
+6x_{1} + 5x_{2} - -4x_{4} \leq 10
+\end{cases}
+\]
+
+\subsection{Restricciones de No Negatividad}
+\[
+x_{1} \geq 0, \quad x_{2} \geq 0, \quad x_{3} \geq 0, \quad x_{4} \geq 0
+\]
+
+\section{Método de Solución}
+
+Se utilizó el \textbf{método simplex estándar}.
+
+\begin{itemize}
+\item Todas las restricciones son del tipo $\leq$
+\item Se introdujeron variables de holgura
+\item No fue necesario utilizar el método de la Gran M
+\end{itemize}
+
+\subsection{Tabla Inicial del Método Simplex}
+
+\textbf{Variables básicas:} $s_{1}$, $s_{2}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$s_{1}$} & \textbf{$s_{2}$} & \textbf{b} \\
+\hline
+Z & -36 & -30 & 3 & 4 & 0 & 0 & 0 \\
+\hline
+$s_{1}$ & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+$s_{2}$ & 6 & 5 & 0 & -4 & 0 & 1 & 10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Iteraciones del Método Simplex}
+
+\subsection{Tabla Intermedia}
+
+\textbf{Iteración:} 1\\
+\textbf{Variables básicas:} $s_{1}$, $s_{2}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$s_{1}$} & \textbf{$s_{2}$} & \textbf{b} \\
+\hline
+Z & -36 & -30 & 3 & 4 & 0 & 0 & 0 \\
+\hline
+$s_{1}$ & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+$s_{2}$ & 6 & 5 & 0 & -4 & 0 & 1 & 10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Tabla Intermedia}
+
+\textbf{Iteración:} 2\\
+\textbf{Variables básicas:} $s_{1}$, $x_{1}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$s_{1}$} & \textbf{$s_{2}$} & \textbf{b} \\
+\hline
+Z & 0 & 0 & 3 & -20 & 0 & 6 & 60 \\
+\hline
+$s_{1}$ & 0 & 0.17 & -1 & 0.67 & 1 & -0.17 & 3.33 \\
+\hline
+$x_{1}$ & 1 & 0.83 & 0 & -0.67 & 0 & 0.17 & 1.67 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Tabla Final - Solución Óptima}
+
+\textbf{Variables básicas:} $x_{4}$, $x_{1}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$x_{3}$} & \textbf{$x_{4}$} & \textbf{$s_{1}$} & \textbf{$s_{2}$} & \textbf{b} \\
+\hline
+Z & 0 & 5 & -27 & 0 & 30 & 1 & 160 \\
+\hline
+$x_{4}$ & 0 & 0.25 & -1.50 & 1 & 1.50 & -0.25 & 5 \\
+\hline
+$x_{1}$ & 1 & 1 & -1 & 0 & 1 & 0 & 5 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Solución:}
+\begin{align*}
+x_{1} &= 5 \\
+x_{2} &= 0 \\
+x_{3} &= 0 \\
+x_{4} &= 5
+\end{align*}
+
+\textbf{Problema No Acotado:} La función objetivo puede mejorar indefinidamente.\\
+
+\section{Resultados}
+
+\subsection{Solución Encontrada}
+
+\subsection{Explicación del Problema No Acotado}
+
+Un problema de programación lineal se considera \textbf{no acotado} cuando la función objetivo puede mejorar indefinidamente sin violar ninguna restricción.
+
+\textbf{Condiciones para no acotamiento:}
+\begin{itemize}
+\item Existe al menos una variable que puede aumentar indefinidamente
+\item Todos los coeficientes en la columna pivote son negativos o cero
+\item No hay restricciones que limiten el crecimiento de la variable
+\end{itemize}
+
+\section{Conclusión}
+
+El problema es \textbf{no acotado}.\\
+La función objetivo puede mejorar indefinidamente sin violar las restricciones.\\
+\textbf{Mensaje:} El problema es no acotado\\
+
+\textbf{Recomendaciones:}
+\begin{itemize}
+\item Revise la formulación del problema.
+\item Posiblemente falten restricciones importantes.
+\end{itemize}
+
+\end{document}

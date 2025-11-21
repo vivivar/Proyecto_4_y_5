@@ -1,0 +1,8 @@
+NAME,prueba6
+TYPE,MIN
+N,2
+VARS,X1,X2
+M,2
+Z,3,2
+R,2,-2,>=,3
+R,2,2,>=,9

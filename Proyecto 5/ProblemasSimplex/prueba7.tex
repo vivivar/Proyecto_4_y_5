@@ -1,0 +1,251 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Investigación de Operaciones}
+\lhead{Método Simplex}
+
+\definecolor{basecolor}{RGB}{0,128,0}
+\definecolor{entracolor}{RGB}{255,0,0}
+\definecolor{empatecolor}{RGB}{0,0,200}
+\definecolor{pivotecolor}{RGB}{200,0,200}
+
+\title{Resultados del Método Simplex\\
+\large Problema: \textbf{prueba7}}
+\author{
+Emily Sánchez\\
+Viviana Vargas\\
+\\
+Curso: Investigación de Operaciones\\
+Semestre II: 2025
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\begin{center}
+\textbf{George Dantzig (1914-2005)}
+\\
+Creador del Método Simplex
+\end{center}
+\vfill
+
+\newpage
+\tableofcontents
+\newpage
+\section{El Algoritmo Simplex}
+
+\subsection{Historia}
+El método Simplex fue desarrollado por George Dantzig en 1947 mientras trabajaba para la Fuerza Aérea de los Estados Unidos. \\
+
+Es uno de los algoritmos más importantes en la historia de la optimización matemática y ha sido fundamental en el desarrollo de la programación lineal. Usa operaciones sobre matrices hasta encontrar la solución óptima o determinar que el problema no tiene solución. Parte de un vértice de la región factible y "salta" a vértices adyacentes que mejoren lo encontrado hasta encontrar la condición de salida.
+
+\subsection{Método de la Gran M}
+El método de la Gran M se utiliza cuando el problema tiene restricciones de tipo $\geq$ o $=$ que requieren variables artificiales. Se asigna un coeficiente $M$ muy grande en la función objetivo para las variables artificiales, donde:
+\begin{itemize}
+\item Para \textbf{maximización}: $M$ es negativo grande ($-M$)
+\item Para \textbf{minimización}: $M$ es positivo grande ($+M$)
+\item El valor de $M$ utilizado es: $1000000$
+\end{itemize}
+Esto fuerza a las variables artificiales a salir de la base en la solución óptima.
+
+\subsection{Propiedades Fundamentales}
+\begin{itemize}
+\item \textbf{Convergencia:} El algoritmo converge a la solución óptima en un número finito de pasos
+\item \textbf{Optimalidad:} Garantiza encontrar la solución óptima global para problemas convexos
+\item \textbf{Factibilidad:} Mantiene la factibilidad en cada iteración
+\end{itemize}
+
+\section{Formulación del Problema}
+
+\textbf{Problema:} prueba7\\
+\textbf{Tipo:} Maximización\\
+\textbf{Número de variables:} 2\\
+\textbf{Número de restricciones:} 3
+
+\subsection{Función Objetivo}
+\[
+Maximizar Z = 0.30x_{1} + 0.70x_{2}
+\]
+
+\subsection{Restricciones}
+\[
+\begin{cases}
+15x_{1} + 30x_{2} \leq 1000 \\
+x_{1} \geq 26 \\
+x_{2} \geq 13
+\end{cases}
+\]
+
+\subsection{Restricciones de No Negatividad}
+\[
+x_{1} \geq 0, \quad x_{2} \geq 0
+\]
+
+\section{Método de Solución}
+
+Se utilizó el \textbf{método de la Gran M} debido a la presencia de restricciones de tipo $\geq$ o $=$.
+
+\begin{itemize}
+\item Valor de M utilizado: $\mathbf{1000000}$
+\item Se introdujeron variables artificiales para las restricciones relevantes
+\item El método garantiza encontrar una solución factible si existe
+\end{itemize}
+
+\subsection{Tabla Inicial del Método Simplex}
+
+\textbf{Variables básicas:} $s_{1}$, $a_{1}$, $a_{2}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$e_{2}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\hline
+Z & -1,0M & -1,0M & 0 & M & M & -2M & -2M & -39M \\
+\hline
+$s_{1}$ & 15 & 30 & 1 & 0 & 0 & 0 & 0 & 1000 \\
+\hline
+$a_{1}$ & 1 & 0 & 0 & -1 & 0 & 1 & 0 & 26 \\
+\hline
+$a_{2}$ & 0 & 1 & 0 & 0 & -1 & 0 & 1 & 13 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Nota:} Se utilizó el método de la Gran M con $M = 1000000$\\
+\textbf{Variables artificiales:} $a_{1}$, $a_{2}$\\
+
+\section{Iteraciones del Método Simplex}
+
+\subsection{Tabla Intermedia}
+
+\textbf{Iteración:} 1\\
+\textbf{Variables básicas:} $s_{1}$, $a_{1}$, $a_{2}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$e_{2}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\hline
+Z & -1,0M & -1,0M & 0 & M & M & -2M & -2M & -39M \\
+\hline
+$s_{1}$ & 15 & 30 & 1 & 0 & 0 & 0 & 0 & 1000 \\
+\hline
+$a_{1}$ & 1 & 0 & 0 & -1 & 0 & 1 & 0 & 26 \\
+\hline
+$a_{2}$ & 0 & 1 & 0 & 0 & -1 & 0 & 1 & 13 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Tabla Intermedia}
+
+\textbf{Iteración:} 2\\
+\textbf{Variables básicas:} $s_{1}$, $a_{1}$, $x_{2}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$e_{2}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\hline
+Z & -1,0M & 0 & 0 & M & -0.70 & -2M & -1,0M & -26,0M \\
+\hline
+$s_{1}$ & 15 & 0 & 1 & 0 & 30 & 0 & -30 & 610 \\
+\hline
+$a_{1}$ & 1 & 0 & 0 & -1 & 0 & 1 & 0 & 26 \\
+\hline
+$x_{2}$ & 0 & 1 & 0 & 0 & -1 & 0 & 1 & 13 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Tabla Intermedia}
+
+\textbf{Iteración:} 3\\
+\textbf{Variables básicas:} $s_{1}$, $x_{1}$, $x_{2}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$e_{2}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\hline
+Z & 0 & 0 & 0 & -0.30 & -0.70 & -1,0M & -1,0M & 16.90 \\
+\hline
+$s_{1}$ & 0 & 0 & 1 & 15 & 30 & -15 & -30 & 220 \\
+\hline
+$x_{1}$ & 1 & 0 & 0 & -1 & 0 & 1 & 0 & 26 \\
+\hline
+$x_{2}$ & 0 & 1 & 0 & 0 & -1 & 0 & 1 & 13 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Tabla Final - Solución Óptima}
+
+\textbf{Variables básicas:} $e_{2}$, $x_{1}$, $x_{2}$\\
+
+\begin{center}
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Base} & \textbf{$x_{1}$} & \textbf{$x_{2}$} & \textbf{$s_{1}$} & \textbf{$e_{1}$} & \textbf{$e_{2}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{b} \\
+\hline
+Z & 0 & 0 & 0.02 & 0.05 & 0 & -1,0M & -M & 22.03 \\
+\hline
+$e_{2}$ & 0 & 0 & 0.03 & 0.50 & 1 & -0.50 & -1 & 7.33 \\
+\hline
+$x_{1}$ & 1 & 0 & 0 & -1 & 0 & 1 & 0 & 26 \\
+\hline
+$x_{2}$ & 0 & 1 & 0.03 & 0.50 & 0 & -0.50 & 0 & 20.33 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Solución:}
+\begin{align*}
+x_{1} &= 26 \\
+x_{2} &= 20.33
+\end{align*}
+
+
+\section{Resultados}
+
+\subsection{Solución Encontrada}
+
+\textbf{Valor óptimo de Z:} $\mathbf{22,03}$\\
+
+\textbf{Valores de las variables de decisión:}\\
+\begin{align*}
+x_{1} &= 26 \\
+x_{2} &= 20.33
+\end{align*}
+
+\section{Conclusión}
+
+El problema tiene una \textbf{solución óptima única}.\\
+El valor óptimo de la función objetivo es: \textbf{Z = 22,03}\\
+\textbf{Mensaje:} Solución óptima única encontrada\\
+
+\textbf{Recomendaciones:}
+\begin{itemize}
+\item La solución encontrada es óptima y puede implementarse directamente.
+\end{itemize}
+
+\end{document}

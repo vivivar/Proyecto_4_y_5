@@ -152,7 +152,7 @@ static void preparar_tabla_simplex(TablaSimplex *tabla) {
     }
     
     for (int j = 0; j < tabla->num_vars_decision; j++) {
-        tabla->tabla[0][j] = (tabla->tipo == MAXIMIZACION) ? -tabla->c[j] : tabla->c[j];
+        tabla->tabla[0][j] = -tabla->c[j];
     }
     
     for (int j = tabla->num_vars_decision + tabla->num_vars_holgura + tabla->num_vars_exceso; 

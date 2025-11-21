@@ -1,0 +1,21 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {section}{\numberline {1}El Algoritmo Simplex}{3}{}%
+\contentsline {subsection}{\numberline {1.1}Historia}{3}{}%
+\contentsline {subsection}{\numberline {1.2}Método de la Gran M}{3}{}%
+\contentsline {subsection}{\numberline {1.3}Propiedades Fundamentales}{3}{}%
+\contentsline {section}{\numberline {2}Formulación del Problema}{3}{}%
+\contentsline {subsection}{\numberline {2.1}Función Objetivo}{3}{}%
+\contentsline {subsection}{\numberline {2.2}Restricciones}{4}{}%
+\contentsline {subsection}{\numberline {2.3}Restricciones de No Negatividad}{4}{}%
+\contentsline {section}{\numberline {3}Método de Solución}{4}{}%
+\contentsline {subsection}{\numberline {3.1}Tabla Inicial del Método Simplex}{4}{}%
+\contentsline {section}{\numberline {4}Iteraciones del Método Simplex}{5}{}%
+\contentsline {subsection}{\numberline {4.1}Tabla Intermedia}{5}{}%
+\contentsline {subsection}{\numberline {4.2}Tabla Intermedia}{5}{}%
+\contentsline {subsection}{\numberline {4.3}Tabla Intermedia}{5}{}%
+\contentsline {subsection}{\numberline {4.4}Tabla Intermedia}{5}{}%
+\contentsline {subsection}{\numberline {4.5}Tabla Intermedia}{6}{}%
+\contentsline {subsection}{\numberline {4.6}Tabla Final - Solución Óptima}{6}{}%
+\contentsline {section}{\numberline {5}Resultados}{6}{}%
+\contentsline {subsection}{\numberline {5.1}Solución Encontrada}{6}{}%
+\contentsline {section}{\numberline {6}Conclusión}{7}{}%
