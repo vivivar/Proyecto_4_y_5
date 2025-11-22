@@ -632,8 +632,247 @@ void generar_tabla_latex(GString *latex, TablaSimplex *tabla, const char *titulo
     }
 }
 
+// Función para generar la tabla inicial simplex 
+void generar_tabla_uno_latex(GString *latex, ProblemaInfo *info) {
+    if (!info) return;
+    
+    g_string_append(latex, "\\section{Tabla Simplex Inicial}\n\n");
+    
+    // Calcular número total de columnas (variables + holgura + artificiales)
+    int total_vars = info->num_vars;
+    int total_holgura = 0;
+    int total_artificiales = 0;
+    int total_exceso = 0;
+    
+    // Contar tipos de variables adicionales
+    for (int r = 0; r < info->num_rest; r++) {
+        switch (info->tipos_restricciones[r]) {
+            case RESTRICCION_LE:
+                total_holgura++;
+                break;
+            case RESTRICCION_GE:
+                total_exceso++;
+                total_artificiales++;
+                break;
+            case RESTRICCION_EQ:
+                total_artificiales++;
+                break;
+        }
+    }
+    
+    int total_columnas = total_vars + total_holgura + total_exceso + total_artificiales;
+    
+    g_string_append(latex, "\\begin{center}\n");
+    g_string_append(latex, "\\small\n");
+    g_string_append(latex, "\\begin{tabular}{|c|");
+    
+    // Encabezado de columnas para variables
+    for (int j = 0; j < total_columnas; j++) {
+        g_string_append(latex, "c|");
+    }
+    g_string_append(latex, "c|}\n"); // Columna adicional para b al final
+    g_string_append(latex, "\\hline\n");
+    
+    // Fila de encabezados - CORREGIDO: b al final
+    g_string_append(latex, "\\textbf{Z} & ");
+    
+    // Variables de decisión
+    for (int j = 0; j < info->num_vars; j++) {
+        char var_latex[64];
+        formatear_nombre_variable_latex(info->nombres_vars[j], var_latex, sizeof(var_latex));
+        g_string_append_printf(latex, "\\textbf{$%s$}", var_latex);
+        g_string_append(latex, " & ");
+    }
+    
+    // Variables de holgura
+    for (int i = 0; i < total_holgura; i++) {
+        g_string_append_printf(latex, "\\textbf{$s_%d$}", i + 1);
+        if (i < total_holgura - 1 || total_exceso > 0 || total_artificiales > 0) {
+            g_string_append(latex, " & ");
+        }
+    }
+    
+    // Variables de exceso
+    for (int i = 0; i < total_exceso; i++) {
+        g_string_append_printf(latex, "\\textbf{$e_%d$}", i + 1);
+        if (i < total_exceso - 1 || total_artificiales > 0) {
+            g_string_append(latex, " & ");
+        }
+    }
+    
+    // Variables artificiales
+    for (int i = 0; i < total_artificiales; i++) {
+        g_string_append_printf(latex, "\\textbf{$a_%d$}", i + 1);
+        if (i < total_artificiales - 1) {
+            g_string_append(latex, " & ");
+        }
+    }
+    
+    g_string_append(latex, " & \\textbf{b} \\\\\n");
+    g_string_append(latex, "\\hline\n");
+    
+    // Fila Z (función objetivo) - CORREGIDO: b al final
+    g_string_append(latex, "1 & ");
+    
+    // Coeficientes de variables en Z
+    for (int j = 0; j < info->num_vars; j++) {
+        char num_buffer[32];
+        double coef = -info->coef_obj[j]; // Negativo porque en simplex se pasa al lado izquierdo
+        formatear_numero(coef, num_buffer, sizeof(num_buffer));
+        g_string_append_printf(latex, "%s", num_buffer);
+        g_string_append(latex, " & ");
+    }
+    
+    // Coeficientes cero para variables de holgura en Z
+    for (int i = 0; i < total_holgura; i++) {
+        g_string_append(latex, "0");
+        if (i < total_holgura - 1 || total_exceso > 0 || total_artificiales > 0) {
+            g_string_append(latex, " & ");
+        }
+    }
+    
+    // Coeficientes cero para variables de exceso en Z
+    for (int i = 0; i < total_exceso; i++) {
+        g_string_append(latex, "0");
+        if (i < total_exceso - 1 || total_artificiales > 0) {
+            g_string_append(latex, " & ");
+        }
+    }
+    
+    // Coeficientes M para variables artificiales en Z
+    for (int i = 0; i < total_artificiales; i++) {
+        if (strcmp(info->tipo_problema, "MAX") == 0) {
+            g_string_append(latex, "-M");
+        } else {
+            g_string_append(latex, "M");
+        }
+        if (i < total_artificiales - 1) {
+            g_string_append(latex, " & ");
+        }
+    }
+    
+    g_string_append(latex, " & 0 \\\\\n");
+    g_string_append(latex, "\\hline\n");
+    
+    // Restricciones
+    int cont_holgura = 0;
+    int cont_exceso = 0;
+    int cont_artificial = 0;
+    
+    for (int r = 0; r < info->num_rest; r++) {
+        // Variable básica
+        switch (info->tipos_restricciones[r]) {
+            case RESTRICCION_LE:
+                g_string_append_printf(latex, "$s_%d$ & ", cont_holgura + 1);
+                cont_holgura++;
+                break;
+            case RESTRICCION_GE:
+                g_string_append_printf(latex, "$a_%d$ & ", cont_artificial + 1);
+                cont_artificial++;
+                break;
+            case RESTRICCION_EQ:
+                g_string_append_printf(latex, "$a_%d$ & ", cont_artificial + 1);
+                cont_artificial++;
+                break;
+        }
+        
+        // Coeficientes de variables de decisión
+        for (int j = 0; j < info->num_vars; j++) {
+            char num_buffer[32];
+            formatear_numero(info->coef_rest[r][j], num_buffer, sizeof(num_buffer));
+            g_string_append_printf(latex, "%s", num_buffer);
+            g_string_append(latex, " & ");
+        }
+        
+        // Variables de holgura
+        for (int i = 0; i < total_holgura; i++) {
+            if (info->tipos_restricciones[r] == RESTRICCION_LE && i == cont_holgura - 1) {
+                g_string_append(latex, "1");
+            } else {
+                g_string_append(latex, "0");
+            }
+            if (i < total_holgura - 1 || total_exceso > 0 || total_artificiales > 0) {
+                g_string_append(latex, " & ");
+            }
+        }
+        
+        // Variables de exceso
+        for (int i = 0; i < total_exceso; i++) {
+            if (info->tipos_restricciones[r] == RESTRICCION_GE && i == cont_exceso) {
+                g_string_append(latex, "-1");
+            } else {
+                g_string_append(latex, "0");
+            }
+            if (i < total_exceso - 1 || total_artificiales > 0) {
+                g_string_append(latex, " & ");
+            }
+        }
+        if (info->tipos_restricciones[r] == RESTRICCION_GE) {
+            cont_exceso++;
+        }
+        
+        // Variables artificiales
+        for (int i = 0; i < total_artificiales; i++) {
+            if ((info->tipos_restricciones[r] == RESTRICCION_GE || 
+                 info->tipos_restricciones[r] == RESTRICCION_EQ) && i == cont_artificial - 1) {
+                g_string_append(latex, "1");
+            } else {
+                g_string_append(latex, "0");
+            }
+            if (i < total_artificiales - 1) {
+                g_string_append(latex, " & ");
+            }
+        }
+        
+        // Lado derecho (b) al final
+        char b_buffer[32];
+        formatear_numero(info->lados_derechos[r], b_buffer, sizeof(b_buffer));
+        g_string_append_printf(latex, " & %s \\\\\n", b_buffer);
+        g_string_append(latex, "\\hline\n");
+    }
+    
+    g_string_append(latex, "\\end{tabular}\n");
+    g_string_append(latex, "\\end{center}\n\n");
+    
+    // Leyenda explicativa
+    g_string_append(latex, "\\textbf{Explicación de la tabla inicial:}\n");
+    g_string_append(latex, "\\begin{itemize}\\small\n");
+    
+    g_string_append(latex, "\\item \\textbf{Variables básicas iniciales:} ");
+    
+    cont_holgura = 0;
+    cont_artificial = 0;
+    int primera = 1;
+    for (int r = 0; r < info->num_rest; r++) {
+        if (!primera) g_string_append(latex, ", ");
+        switch (info->tipos_restricciones[r]) {
+            case RESTRICCION_LE:
+                g_string_append_printf(latex, "$s_%d$", ++cont_holgura);
+                break;
+            case RESTRICCION_GE:
+            case RESTRICCION_EQ:
+                g_string_append_printf(latex, "$a_%d$", ++cont_artificial);
+                break;
+        }
+        primera = 0;
+    }
+    g_string_append(latex, "\n");
+    
+    if (total_artificiales > 0) {
+        g_string_append(latex, "\\item \\textbf{Método de la Gran M:} Se utilizan variables artificiales ");
+        g_string_append(latex, "para restricciones $\\geq$ y $=$\n");
+        g_string_append_printf(latex, "\\item \\textbf{Valor de M:} $%.0f$\n", M_GRANDE);
+    }
+    
+    g_string_append(latex, "\\item \\textbf{Fila Z:} Muestra los coeficientes reducidos ");
+    g_string_append(latex, "(costo de oportunidad)\n");
+    g_string_append(latex, "\\item \\textbf{Columna b:} Términos independientes de las restricciones (al final)\n");
+    g_string_append(latex, "\\end{itemize}\n\n");
+}
+
 // Generar tabla inicial
 void generar_tabla_inicial_latex(GString *latex, TablaSimplex *tabla, ProblemaInfo *info) {
+    generar_tabla_uno_latex(latex, info);
     generar_tabla_latex(latex, tabla, "Tabla Inicial del Método Simplex", -1, FALSE, NULL);
     if (tabla->num_vars_artificiales > 0) {
         g_string_append(latex, "\\textbf{Nota:} Se utilizó el método de la Gran M con ");

@@ -8,14 +8,15 @@
 \contentsline {subsection}{\numberline {2.2}Restricciones}{4}{}%
 \contentsline {subsection}{\numberline {2.3}Restricciones de No Negatividad}{4}{}%
 \contentsline {section}{\numberline {3}Método de Solución}{4}{}%
-\contentsline {subsection}{\numberline {3.1}Tabla Inicial del Método Simplex}{4}{}%
-\contentsline {section}{\numberline {4}Iteraciones del Método Simplex}{4}{}%
-\contentsline {subsection}{\numberline {4.1}Tabla Intermedia}{4}{}%
-\contentsline {subsection}{\numberline {4.2}Tabla Intermedia}{5}{}%
-\contentsline {subsection}{\numberline {4.3}Tabla Intermedia}{5}{}%
-\contentsline {subsection}{\numberline {4.4}Tabla Intermedia}{5}{}%
-\contentsline {subsection}{\numberline {4.5}Tabla Intermedia}{5}{}%
-\contentsline {subsection}{\numberline {4.6}Tabla Final - Solución Óptima}{6}{}%
-\contentsline {section}{\numberline {5}Resultados}{6}{}%
-\contentsline {subsection}{\numberline {5.1}Solución Encontrada}{6}{}%
-\contentsline {section}{\numberline {6}Conclusión}{6}{}%
+\contentsline {section}{\numberline {4}Tabla Simplex Inicial}{4}{}%
+\contentsline {subsection}{\numberline {4.1}Tabla Inicial del Método Simplex}{5}{}%
+\contentsline {section}{\numberline {5}Iteraciones del Método Simplex}{5}{}%
+\contentsline {subsection}{\numberline {5.1}Tabla Intermedia}{5}{}%
+\contentsline {subsection}{\numberline {5.2}Tabla Intermedia}{6}{}%
+\contentsline {subsection}{\numberline {5.3}Tabla Intermedia}{6}{}%
+\contentsline {subsection}{\numberline {5.4}Tabla Intermedia}{7}{}%
+\contentsline {subsection}{\numberline {5.5}Tabla Intermedia}{8}{}%
+\contentsline {subsection}{\numberline {5.6}Tabla Final - Solución Óptima}{8}{}%
+\contentsline {section}{\numberline {6}Resultados}{9}{}%
+\contentsline {subsection}{\numberline {6.1}Solución Encontrada}{9}{}%
+\contentsline {section}{\numberline {7}Conclusión}{9}{}%
